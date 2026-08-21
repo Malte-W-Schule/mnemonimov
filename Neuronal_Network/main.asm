@@ -148,15 +148,6 @@ vector:
     def .vector_size ( $ - vector)      # size 12
 
 
-sbmk "vec3 read exmaple"
-
-vec3_read_example:
-
-    cea a0,0,1                          # a0 = vec adress
-    lde f32t,a0,vector.x                # load x into a0
-
-    ret
-
 sbmk "vec3 read cea (storage)"
 ## Functionality
 # loads the values x,y,z from a given vec a0 into a0-a2
@@ -369,6 +360,65 @@ Vec3_cross_product:
 
 bmk "Vec3 Extra / Help"
 
+sbmk "vec3 create example"
+# vec-name: res u8t vector.vector_size (allowcates vector size storage for vec)
+# vec.0 = vec(address, for example 100) + x (0) = 100
+# for y and z its then vec(100) + y (4) = 104.. leading to the correct address where
+# x, y or z are stored
+vec3_example: res u8t vector.vector_size
+
+sbmk "vec3 read value exmaple"
+# or use the vec3 read cea function ;)
+vec3_read_example:
+
+    cea a0,0,1                          # a0 = vec adress
+    lde f32t,a0,vector.x                # load x into a0
+
+    ret
+
+sbmk "vec3 write value example"
+vec3_write_example:
+    cea a0,0,1                          # a0 = vec adress
+     ste f32t,vector.x,a5               # a5 = new value (vector.x/.y/.z depending on which value)
+
+sbmk "draw_float_on_screen"
+## Functionality
+
+## Params
+# a0    :   start x coordinate
+# a1    :   to draw float
+
+## Output
+draw_float_on_screen:
+
+
+    mov a4, 80                          # set luma
+
+    cmp flt,a1,0.0                      # if float < 0.0
+    jtr .draw_float
+
+    mov a4,255                          # if false (pos) set luma to 255
+    .draw_float:
+
+    fabs a3,a1                          # calc y height (depth)
+
+    fmul a3,a3,10.0                     # mul by 10
+    fcti a3,a3                          # convert to int
+
+    cmp eq,a3,0                         # if value = 0, draw one pixel
+    jfs .draw_not_0
+
+    mov a3,1
+    .draw_not_0:
+
+    mov a1, 10                          # set y pos
+    mov a2, 10                          # set x size
+
+    # Args: a0:pos_x, a1:pos_y, a2:size_x, a3:size_y, a4:luma
+    syscall SYS_DRAW_RECT
+    ret
+
+
 sbmk "vec3_draw_on_screen"
 ## Functionality
 # draws a vec3 on the (lcd) screen, starting from x, and y is the "value" of the float
@@ -403,10 +453,6 @@ vec3_draw_on_screen:
     pop a1                              # |     (a2)
     cal draw_float_on_screen
     ret
-
-sbmk "vec3 create example"
-
-vec3_example: res u8t vector.vector_size
 
 sbmk "Vec3 x Matrix"
 sbmk "Matrix x Matrix"
