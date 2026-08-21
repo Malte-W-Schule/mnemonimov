@@ -31,7 +31,7 @@ vector:
     def .vector_size ( $ - vector)      # size 12
 
 
-sbmk "vec3 read"
+sbmk "vec3 load"
 ## Functionality
 # loads the values x,y,z from a given vec a0 into a0-a2
 # into c ea
@@ -41,7 +41,7 @@ sbmk "vec3 read"
 
 ## Output
 # a0-a2 :   values x,y,z
-vec3_read:
+vec3_load:
 
     cea a0,0,1                          # load vec adress in a0
     lde f32t,a0,vector.x                # load vec.values into a0-a2
@@ -51,9 +51,9 @@ vec3_read:
     ret
 
 
-sbmk "vec3 write"
+sbmk "vec3 store"
 ## Functionality
-# writes vec into c ae
+# stores vec3 into c ae
 
 ## Params
 # a0-a2     :   values Vec A
@@ -61,7 +61,7 @@ sbmk "vec3 write"
 
 ## Output
 
-vec3_write:
+vec3_store:
 
 cea a3,0,1                              # load vec3 address in a3
     ste f32t,vector.x,a0                # write a0-a2 into vec
@@ -72,20 +72,20 @@ cea a3,0,1                              # load vec3 address in a3
 
 bmk "vec3 Advanced"
 
-sbmk "vec 3 read cea 2vec"
+sbmk "vec3 load 2"
 ## Functionality
 # loads the values x,y,z from a given vec a0 into a0-a2
 
 ## Params
-# a0    :   vec3 (adress) to load
-# a1    :   vec3 (adress) to load
+# a0    :   vec3 A (adress) to load
+# a1    :   vec3 B (adress) to load
 
 ## Output
 # a0-a2 :   values x,y,z
 # a3-a5 :   values x,y,z
-vec3_read_2:
+vec3_load_2:
 
-    psh a0                              # |a0
+    psh a0                              # |a0(vec A)
 
     mov a0,a1                           # move to load adress -> a0
     cea a0,0,1                          # load Vec B
@@ -93,17 +93,15 @@ vec3_read_2:
     lde f32t,a4,vector.y
     lde f32t,a5,vector.z
 
-    pop a0                              # |     (a0)
+    pop a0                              # |     [a0(vec A)]
     cea a0,0,1                          # load Vec A
-    lde f32t,a0,vector.x                # load Vec A values -> a0-a2
-    lde f32t,a1,vector.y
-    lde f32t,a2,vector.z
+    cal vec3_load                       # load a0-a2 into cae
 
     ret
 
-sbmk "vec3 writes cea 2"
+sbmk "vec3 store 2"
 ## Functionality
-# writes vec into cae
+# writes 2 vec into cae
 
 ## Params
 # a0-a2     :   values Vec A
@@ -112,14 +110,16 @@ sbmk "vec3 writes cea 2"
 # a7        :   vec3 B
 
 ## Output
-vec3_write_2:
+vec3_store_2:
 
-    cea a6,0,1                          # read Vec A
+    # --- Write Vec A ---
+    cea a6,0,1                          # load vec A address
     ste f32t,vector.x,a0                # vec A x -> a0
     ste f32t,vector.y,a1                # Vec A y -> a1
     ste f32t,vector.z,a2                # Vec A z -> a2
 
-    cea a7,0,1                          # read Vec B
+    # --- Write Vec B ---
+    cea a7,0,1                          # load vec B address
     ste f32t,vector.x,a3                # Vec B x -> A3
     ste f32t,vector.y,a4                # Vec B y -> A4
     ste f32t,vector.z,a5                # Vec B z -> A5
@@ -138,31 +138,37 @@ sbmk "vec3 swizzle"
 ## Params:
 # a0    : pointer to vec3
 # a1    : binary mask (e.g. 0b11_10_01 for z, y, x)
+# a2    : destination vec3 addr
 
 ## Output:
-# a0    : new x
-# a1    : new y
-# a2    : new z
 vec3_swizzle:
-    mov a3, a1                          # Save mask in a3
-    cal vec3_read                       # a0 (ptr) -> loads a0=x, a1=y, a2=z
 
-    # X
+    # --- Save ---
+    mov a3,a1                           # mask (a1) -> a3
+    psh a2                              # |a2(dest add)
+    cal vec3_load                       # a0 (ptr) -> loads a0=x, a1=y, a2=z
+
+    # --- swizzle X ---
     cal swizzle_single                  # Result in a4
-    psh a4                              # Push new X to stack
+    psh a4                              # |a2(dest)-a4(x)
 
-    # Y
+    # -- swzizzle Y ---
     cal swizzle_single                  # Result in a4
-    psh a4                              # Push new Y to stack
+    psh a4                              # |a2(dest)-a4(x)-a4(y)
 
-    # Z
+    # --- swizzle Z ---
     cal swizzle_single                  # Result in a4
     mov a2, a4                          # a2 = new Z
 
     # restor x and y in old regs
-    pop a1                              # pop into a1 = new Y
-    pop a0                              # pop into a0 = new X
+    pop a1                              # |a2(dest)-a4(x)   a4(y)
+    pop a0                              # |a2(dest)     a4(x)
 
+    # --- write to dest ---
+    pop a3                              # |     a2(dest)
+    cal vec3_store                      # save xyz in dest addr
+
+    mov a2,a3                           # a3(dest) -> a2
     ret
 
 bmk "Vec3 Calculations"
@@ -205,35 +211,36 @@ Vec3_magnitute:
     ret
 
 sbmk "vec3 normalize"
-
 ## Functionality
 # v / |v| = ^v
 
 ## Params
-# a0-a2 :   Vec A
+# a0        :   source vec3
+# a1        :   dest vec3
 
 ## Output
-# a0-a2    :   returns normalized Vec A
+# a0-a2     :   returns normalized Vec A
 Vec3_normalize:
 
-    # Save Vec A
-    psh a0                              # |a0
-    psh a1                              # |a0-a1
-    psh a2                              # |a0-a1-a2
+    # --- Save source vec3 ---
+    psh a1                              # |a1(dest)
+    psh a0                              # |a1(dest)-a0(source)
 
-    # calc Vec A magnitude
+    # --- calc magnitude ---
     cal Vec3_magnitute
     mov t0,a0                           # magnitute result -> t0
 
-    # restore Vec A
-    pop a2                              # |a0-a1    (a2)
-    pop a1                              # |a0       (a1)
-    pop a0                              # |         (a0)
+    # --- load source vec3 ---
+    pop a0                              # |a1(dest)     [a0(source)]
 
-    # normalize each value
+    # --- Normalize each value ---
     fdiv a0, a0, t0                     #add = div / sor    x/x^
     fdiv a1, a1, t0                     #                   y/y^
     fdiv a2, a2, t0                     #                   z/z^
+
+    # --- store result ---
+    pop a3                              # |     [a1(dest)]
+    cal vec3_store
 
     ret
 
@@ -281,14 +288,14 @@ Vec3_cross_product:
 
 bmk "Vec3 examples"
 
-sbmk "vec3 create example"
+sbmk "vec3 create"
 # vec-name: res u8t vector.vector_size (allowcates vector size storage for vec)
 # vec.0 = vec(address, for example 100) + x (0) = 100
 # for y and z its then vec(100) + y (4) = 104.. leading to the correct address where
 # x, y or z are stored
 vec3_example: res u8t vector.vector_size
 
-sbmk "vec3 read value exmaple"
+sbmk "vec3 read value"
 # or use the vec3 read cea function ;)
 vec3_read_example:
 
@@ -300,7 +307,7 @@ vec3_read_example:
 
 
 
-sbmk "vec3 write value example"
+sbmk "vec3 write value"
 vec3_write_example:
     cea a0,0,1                          # a0 = vec adress
      ste f32t,vector.x,a5               # a5 = new value (vector.x/.y/.z depending on which value)
@@ -324,7 +331,7 @@ vec3_draw_on_screen:
     mov t0,a0
 
     mov a0,a1                           # vec address in a0, for param cal
-    cal vec3_read                       # get values
+    cal vec3_load                       # get values
     psh a2                              # |a2
     psh a1                              # |a2-a1
 
@@ -367,7 +374,7 @@ vec3_print:
     syscall SYS_PRINT_STRING
 
     pop a0
-    cal vec3_read
+    cal vec3_load
 
     syscall SYS_PRINT_LINE_FLOAT
 
@@ -390,12 +397,18 @@ vec3_tmp: res u8t vector.vector_size
 
 sbmk "swizzle single"
 ## Helper: Extracts lowest 2 bits from a3, sets a4, and shifts a3 right by 2
+
 ## Params:
 # a0    : original x
 # a1    : original y
 # a2    : original z
-# a3    : bitmask (shifted by 2 on return)
+# a3    : bitmask
+
 ## Output:
+# a0    : original x
+# a1    : original y
+# a2    : original z
+# a3    : bitmask (shifted 2 >> on return)
 # a4    : selected value (0.0, x, y, or z)
 swizzle_single:
     and a4, a3, 3                       # get 2 lowest bits 0b00_00_[11]
