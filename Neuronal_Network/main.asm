@@ -32,7 +32,6 @@ sbmk "draw_float_on_screen"
 ## Output
 draw_float_on_screen:
 
-
     mov a4, 80                          # set luma
 
     cmp flt,a1,0.0                      # if float < 0.0

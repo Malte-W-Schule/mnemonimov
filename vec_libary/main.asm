@@ -30,34 +30,32 @@ vector:
     def .z (._z - vector)               # offset 8
     def .vector_size ( $ - vector)      # size 12
 
-
 sbmk "vec3 load"
 ## Functionality
 # loads the values x,y,z from a given vec a0 into a0-a2
 # into c ea
 
 ## Params
-# a0    :   vec3 (adress) to load
+# a0    :   source vec3 to load
 
 ## Output
 # a0-a2 :   values x,y,z
 vec3_load:
 
     cea a0,0,1                          # load vec adress in a0
-    lde f32t,a0,vector.x                # load vec.values into a0-a2
-    lde f32t,a1,vector.y
-    lde f32t,a2,vector.z
+    lde f32t,a0,vector.x                # a0 -> x
+    lde f32t,a1,vector.y                # a1 -> y
+    lde f32t,a2,vector.z                # a2 -> z
 
     ret
-
 
 sbmk "vec3 store"
 ## Functionality
 # stores vec3 into c ae
 
 ## Params
-# a0-a2     :   values Vec A
-# a3        :   vec3 A
+# a0-a2     :   x,y,z
+# a3        :   dest vec3
 
 ## Output
 
@@ -77,22 +75,24 @@ sbmk "vec3 load 2"
 # loads the values x,y,z from a given vec a0 into a0-a2
 
 ## Params
-# a0    :   vec3 A (adress) to load
-# a1    :   vec3 B (adress) to load
+# a0    :   source vec3 A (adress) to load
+# a1    :   source vec3 B (adress) to load
 
 ## Output
-# a0-a2 :   values x,y,z
-# a3-a5 :   values x,y,z
+# a0-a2 :   A(x,y,z)
+# a3-a5 :   B(x,y,z)
 vec3_load_2:
 
     psh a0                              # |a0(vec A)
 
+    # --- Load vec3 B ---
     mov a0,a1                           # move to load adress -> a0
     cea a0,0,1                          # load Vec B
     lde f32t,a3,vector.x                # load vec B values -> a3-a5
     lde f32t,a4,vector.y
     lde f32t,a5,vector.z
 
+    # --- Load vec3 A ---
     pop a0                              # |     [a0(vec A)]
     cea a0,0,1                          # load Vec A
     cal vec3_load                       # load a0-a2 into cae
@@ -112,13 +112,11 @@ sbmk "vec3 store 2"
 ## Output
 vec3_store_2:
 
-    # --- Write Vec A ---
+    # --- store Vec A ---
     cea a6,0,1                          # load vec A address
-    ste f32t,vector.x,a0                # vec A x -> a0
-    ste f32t,vector.y,a1                # Vec A y -> a1
-    ste f32t,vector.z,a2                # Vec A z -> a2
+    cal vec3_store
 
-    # --- Write Vec B ---
+    # --- store Vec B ---
     cea a7,0,1                          # load vec B address
     ste f32t,vector.x,a3                # Vec B x -> A3
     ste f32t,vector.y,a4                # Vec B y -> A4
@@ -177,13 +175,20 @@ sbmk "vec3 dot product"
 # calculates the dot product of 2 vectors
 
 ## Params
-# a0-a2 : Vec A
-# a3-a5 : Vec B
+# a0    : source vec3 A
+# a1    : source vec3 B
 
 ## Output
 # a0    : single value representing dot product of both vectors
 
 vec3_dot_product:
+
+    # --- load  ---
+    mov a6,a0
+    mov a7,a1
+    cal vec3_load_2
+
+    # ---  ---
     vffma a0..a2,a0..,a3..,zr           # mutiplaying A.X * B.X -> A.X ...
 
     fadd a0,a0,a1                       # X+Y -> A.X (a0)
@@ -192,22 +197,27 @@ vec3_dot_product:
     ret
 
 sbmk "vec3 magnitute"
-#(v-length)
-
 ## Functionality
 # sqrt(x^2 + y^2 + z^2) = sqrt(v*v)
+#(v-length)
 
 ## Params
-# a0-a2 :   Vec
+# a0    :   source vec3
 
 ## Output
 # a0    :   magnitute / lenght of vector
 
 Vec3_magnitute:
+
+    # --- load source vec ---
+    cal vec3_load
+
+    # --- calc magnitute  ---
     fmul t0, a0, a0                     # X*X
     ffma t0,a1,a1,t0                    # Y*Y + (x^2)
     ffma a0,a2,a2,t0                    # Z*Z + (x^2 + y^2)
     fsqrt a0, a0                        # sqrt()
+
     ret
 
 sbmk "vec3 normalize"
@@ -251,34 +261,35 @@ sbmk "vec3 cross product"
 # ( A.X * B.Y) - (B.X * A.Y) -> C.Z
 
 ## Params
-# a0-a2 :   Vec A
-# a3-a5 :   Vec B
+# a0    :   source vec3 A
+# a1    :   source vec3 B
+# a2    :   dest vec3
 
 ## Output
-# a0-a2 :   Vec C (A x B)
 
 Vec3_cross_product:
 
+    # --- load vec3 A and B ---
+    cal vec3_load_2                     # a0-a5 vec A/B values
+
+    # --- save vec3 B to t3-t5 ---
     mov t3,a0                           # a0 -> t3 (x)
     mov t4,a1                           # a1 -> t4 (y)
     mov t5,a2                           # a2 -> t5 (z)
 
-    # X
-    # ( A.Y * B.Z) - (B.Y * A.Z) -> C.X
+    # --- X: ( A.Y * B.Z) - (B.Y * A.Z) -> C.X ---
     fmul t0,t4,a5                       # ( A.Y * B.Z)
     fmul t1,a4,t5                       # (B.Y * A.Z)
 
     fsub a0,t0,t1                       # X = () - ()
 
-    # Y
-    # ( A.Z * B.X) - (B.Z * A.X) -> C.Y
+    # --- Y: ( A.Z * B.X) - (B.Z * A.X) -> C.Y ---
     fmul t0,t5,a3                       # ( A.Z * B.X)
     fmul t1,a5,t3                       # (B.Z * A.X)
 
     fsub a1,t0,t1                       # Y = () - ()
 
-    # Z
-    # ( A.X * B.Y) - (B.X * A.Y) -> C.Z
+    # --- Z: ( A.X * B.Y) - (B.X * A.Y) -> C.Z ---
     fmul t0,t3,a4                       # ( A.X * B.Y)
     fmul t1,a3,t4                       # (B.X * A.Y)
 
