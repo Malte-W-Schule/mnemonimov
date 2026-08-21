@@ -157,7 +157,7 @@ sbmk "vec3 read cea (storage)"
 
 ## Output
 # a0-a2 :   values x,y,z
-read_vec3:
+vec3_read:
 
     cea a0,0,1                          # load vec adress in a0
     lde f32t,a0,vector.x                # load vec.values into a0-a2
@@ -177,7 +177,7 @@ sbmk "vec3 writes cea (storage)"
 
 ## Output
 
-write_vec3:
+vec3_write:
 
 cea a3,0,1                              # load vec3 address in a3
     ste f32t,vector.x,a0                # write a0-a2 into vec
@@ -199,7 +199,7 @@ sbmk "vec 3 read cea 2vec"
 ## Output
 # a0-a2 :   values x,y,z
 # a3-a5 :   values x,y,z
-read_vec3_2:
+vec3_read_2:
 
     psh a0                              # |a0
 
@@ -228,7 +228,7 @@ sbmk "vec3 writes cea 2"
 # a7        :   vec3 B
 
 ## Output
-write_vec3_2:
+vec3_write_2:
 
     cea a6,0,1                          # read Vec A
     ste f32t,vector.x,a0                # vec A x -> a0
@@ -314,7 +314,6 @@ Vec3_normalize:
 
     ret
 
-
 sbmk "vec3 cross product"
 ## Functionality
 # ( A.Y * B.Z) - (B.Y * A.Z) -> C.X
@@ -357,7 +356,6 @@ Vec3_cross_product:
 
     ret
 
-
 bmk "Vec3 Extra / Help"
 
 sbmk "vec3 create example"
@@ -376,10 +374,88 @@ vec3_read_example:
 
     ret
 
+sbmk "vec3 swizzle"
+## Functionality:
+# Re-positions vector
+# Encoding per component (2 bits):
+# 00 = 0.0 (zero)
+# 01 = x
+# 10 = y
+# 11 = z
+
+## Params:
+# a0    : pointer to vec3
+# a1    : binary mask (e.g. 0b11_10_01 for z, y, x)
+
+## Output:
+# a0    : new x
+# a1    : new y
+# a2    : new z
+vec3_swizzle:
+    mov a3, a1                          # Save mask in a3
+    cal vec3_read                       # a0 (ptr) -> loads a0=x, a1=y, a2=z
+
+    # --- New X (Bits 1..0) ---
+    cal swizzle_single                  # Result in a4
+    psh a4                              # Push new X to stack
+
+    # --- New Y (Bits 3..2) ---
+    cal swizzle_single                  # Result in a4
+    psh a4                              # Push new Y to stack
+
+    # --- New Z (Bits 5..4) ---
+    cal swizzle_single                  # Result in a4
+    mov a2, a4                          # a2 = new Z
+
+    # --- Restore X and Y in correct registers ---
+    pop a1                              # pop into a1 = new Y
+    pop a0                              # pop into a0 = new X
+
+    ret
+
+sbmk "swizzle single"
+## Helper: Extracts lowest 2 bits from a3, sets a4, and shifts a3 right by 2
+## Params:
+# a0    : original x
+# a1    : original y
+# a2    : original z
+# a3    : bitmask (shifted by 2 on return)
+## Output:
+# a4    : selected value (0.0, x, y, or z)
+swizzle_single:
+    and a4, a3, 3                       # get 2 lowest bits 0b00_00_[11]
+    sar a3, a3, 2                       # >> mask for the next component
+
+    cmp eq, a4, 0
+    jtr .swizzle_00
+
+    cmp eq, a4, 1
+    jtr .swizzle_01
+
+    cmp eq, a4, 2
+    jtr .swizzle_10
+
+    # else: for 3 (0b11)
+    mov a4, a2                          # 11 -> z
+    ret
+
+.swizzle_00:
+    mov a4, 0.0                         # 00 -> 0.0
+    ret
+
+.swizzle_01:
+    mov a4, a0                          # 01 -> x
+    ret
+
+.swizzle_10:
+    mov a4, a1                          # 10 -> y
+    ret
+
 sbmk "vec3 write value example"
 vec3_write_example:
     cea a0,0,1                          # a0 = vec adress
      ste f32t,vector.x,a5               # a5 = new value (vector.x/.y/.z depending on which value)
+
 
 sbmk "vec3_draw_on_screen"
 ## Functionality
@@ -396,7 +472,7 @@ vec3_draw_on_screen:
     mov t0,a0
 
     mov a0,a1                           # vec address in a0, for param cal
-    cal read_vec3                       # get values
+    cal vec3_read                       # get values
     psh a2                              # |a2
     psh a1                              # |a2-a1
 
@@ -415,6 +491,7 @@ vec3_draw_on_screen:
     pop a1                              # |     (a2)
     cal draw_float_on_screen
     ret
+
 
 
 sbmk "vec3 print"
@@ -438,7 +515,7 @@ vec3_print:
     syscall SYS_PRINT_STRING
 
     pop a0
-    cal read_vec3
+    cal vec3_read
 
     syscall SYS_PRINT_LINE_FLOAT
 
@@ -554,19 +631,19 @@ predict_nn:
     mov a1,s1                           # vec3 B
 
     # input * hidden layer
-    cal read_vec3_2
+    cal vec3_read_2
     cal vec3_dot_product                # result in a0  (1/3)
     mov s5,a0
 
     mov a0,s0
     mov a1,s2                           # (2/3)
-    cal read_vec3_2
+    cal vec3_read_2
     cal vec3_dot_product
     mov s6,a0
 
     mov a0,s0
     mov a1,s3                           # (3/3)
-    cal read_vec3_2
+    cal vec3_read_2
     cal vec3_dot_product
     mov s7,a0
 
@@ -582,7 +659,7 @@ predict_nn:
 
     # hidden * output                   # start preparing for dot product
     mov a0,s4                           # add vec hidden -> a0
-    cal read_vec3                       # vec B (hidden layer) -> a0-a2
+    cal vec3_read                       # vec B (hidden layer) -> a0-a2
 
     mov a3,s5                           # vec A.X -> a3 (output layer)..
     mov a4,s6                           # vec A.Y -> s4
@@ -620,7 +697,7 @@ packprop_nn:
 
     # 2. Save old output weights (needed for hidden layer backpropagation)
     mov a0, s4
-    cal read_vec3                       # a0..a2 = old w_out
+    cal vec3_read                       # a0..a2 = old w_out
     mov s10, a0                         # old w_out.x
     mov s11, a1                         # old w_out.y
     mov s12, a2                         # old w_out.z
@@ -636,11 +713,11 @@ packprop_nn:
     mov a7, s7                          # input z (ReLU intermediate value 3)
     cal update_vec3_weights             # returns new weights in a0..a2
     mov a3, s4                          # Destination address to a3
-    cal write_vec3
+    cal vec3_write
 
     # 4. Load original inputs from vecInput (remain identical for all 3 hidden updates)
     mov a0, s0
-    cal read_vec3
+    cal vec3_read
     mov s13, a0                         # s13 = in.x
     mov s14, a1                         # s14 = in.y
     mov s15, a2                         # s15 = in.z
@@ -653,7 +730,7 @@ packprop_nn:
 
     psh a0                              # Briefly push delta_hid1 onto the stack
     mov a0, s1
-    cal read_vec3                       # a0=X, a1=Y, a2=Z
+    cal vec3_read                       # a0=X, a1=Y, a2=Z
     mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
@@ -664,7 +741,7 @@ packprop_nn:
     mov a7, s15                         # in.z
     cal update_vec3_weights
     mov a3, s1                          # Destination address to a3
-    cal write_vec3
+    cal vec3_write
 
     # --- Hidden Layer 2/3 (vecHid2) ---
     mov a0, s9
@@ -674,7 +751,7 @@ packprop_nn:
 
     psh a0
     mov a0, s2
-    cal read_vec3                       # a0=X, a1=Y, a2=Z
+    cal vec3_read                       # a0=X, a1=Y, a2=Z
     mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
@@ -685,7 +762,7 @@ packprop_nn:
     mov a7, s15
     cal update_vec3_weights
     mov a3, s2
-    cal write_vec3
+    cal vec3_write
 
     # --- Hidden Layer 3/3 (vecHid3) ---
     mov a0, s9
@@ -695,7 +772,7 @@ packprop_nn:
 
     psh a0
     mov a0, s3
-    cal read_vec3                       # a0=X, a1=Y, a2=Z
+    cal vec3_read                       # a0=X, a1=Y, a2=Z
     mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
@@ -706,7 +783,7 @@ packprop_nn:
     mov a7, s15
     cal update_vec3_weights
     mov a3, s3
-    cal write_vec3
+    cal vec3_write
 
     ret
 
@@ -796,145 +873,262 @@ relu:
     ret
 
 bmk "NN Dialog"
+sbmk "Data"
 
-sbmk "Train Dialog Data"
+msg_start:       emb string "Welcome to this Neural Network"
+msg_select_mode: emb string "Input:"
+msg_option_1:    emb string " - 1: Training"
+msg_option_2:    emb string " - 2: Inference / Using"
 
-train_state:     emb u32t 0             # 0 = Idle, 1 = X, 2 = Y, 3 = Z, 4 = Target
+dialog:          emb u32t 0
+state:           emb u32t 0
+
 temp_pred:       emb f32t 0.0
 
-msg_prompt_x:    emb string "Training gestartet! Bitte Input X eingeben:"
-msg_prompt_y:    emb string "Bitte Input Y eingeben:"
-msg_prompt_z:    emb string "Bitte Input Z eingeben:"
-msg_prompt_res:  emb string "Bitte Zielwert (0.0 oder 1.0) eingeben:"
-msg_done:        emb string "Trainingsschritt erfolgreich ausgefuehrt!"
+msg_prompt_x:    emb string "Enter Input X:"
+msg_prompt_y:    emb string "Enter Input Y:"
+msg_prompt_res:  emb string "Enter Target Result (0.0 / 1.0):"
+msg_done:        emb string "Successfully trained!"
 
-sbmk "set state"
-## Functionality
-
-## Params
-# a0    :   new state
-
-## Output
+sbmk "Set State"
+## Params:
+# a0 = new state ID
 set_state:
-    cea train_state,0,1
-    ste u32t,0,a0
+    cea state, 0, 1
+    ste u32t, 0, a0
     ret
 
-sbmk "Train Dialog"
+sbmk "Set Dialog"
+## Params:
+# a0 = new dialog ID (0: Menu, 1: Train, 2: Use)
+set_dialog:
+    cea dialog, 0, 1
+    ste u32t, 0, a0
+    ret
 
-train_dialog:
-
-    mov a0,buffer
-    mov a1,MAX_TERMINAL_INPUT_SIZE
+sbmk "Router"
+start_dialog:
+    # 1. Read input from terminal into buffer
+    mov a0, buffer
+    mov a1, MAX_TERMINAL_INPUT_SIZE
     syscall SYS_READ_TERMINAL_INPUT
 
-    cea train_state,0,1     # load state into t0
+    # 2. Check active dialog mode
+    cea dialog, 0, 1
     lde u32t, t0, 0
 
-    # check State 0
-    cmp eq, t0,0
-    jtr .state_0
+    cmp eq, t0, 0
+    jtr dialog_menu
 
-    # check State 1
-    cmp eq, t0,1
-    jtr .state_1
+    cmp eq, t0, 1
+    jtr dialog_train
 
-    # check State 2
-    cmp eq, t0,2
-    jtr .state_2
-
-    # check State 3
-    cmp eq, t0,3
-    jtr .state_3
+    cmp eq, t0, 2
+    jtr dialog_use
 
     ret
 
-sbmk "state 0"
-    # === State 0 ===
-    # ask x
-    .state_0:
+# ==========================================
+# Sub-Dialog Routers
+# ==========================================
 
-    mov a0,msg_prompt_x
+sbmk "Menu Router"
+dialog_menu:
+    cea state, 0, 1
+    lde u32t, t0, 0
+
+    cmp eq, t0, 0
+    jtr state_0
+
+    cmp eq, t0, 1
+    jtr state_1
+
+    ret
+
+sbmk "Train Router"
+dialog_train:
+    cea state, 0, 1
+    lde u32t, t0, 0
+
+    cmp eq, t0, 3
+    jtr state_3
+
+    cmp eq, t0, 4
+    jtr state_4
+
+    cmp eq, t0, 5
+    jtr state_5
+
+    ret
+
+sbmk "Infer Router"
+dialog_use:
+    cea state, 0, 1
+    lde u32t, t0, 0
+
+    cmp eq, t0, 6
+    jtr state_6
+
+    cmp eq, t0, 7
+    jtr state_7
+
+    ret
+
+bmk "Dialog States"
+sbmk "State 0"
+state_0:
+    mov a0, msg_start
     syscall SYS_PRINT_LINE_STRING
 
-    mov a0,1                        # set state 1
+    mov a0, msg_select_mode
+    syscall SYS_PRINT_LINE_STRING
+
+    mov a0, msg_option_1
+    syscall SYS_PRINT_LINE_STRING
+
+    mov a0, msg_option_2
+    syscall SYS_PRINT_LINE_STRING
+
+    mov a0, 1                           # Advance to State 1: wait for menu input
     cal set_state
     ret
 
-
-sbmk "state 1"
-    # === State 1 ===
-    # read x
-    # ask y
-    .state_1:
-
-    # read x
+sbmk "State 1"
+state_1:
     mov a0, buffer
-    cal parse_single_float          # parse number from a0
+    cal parse_single_float              # Parse selection number
+    fcti a0, a0                         # Convert float to integer in a0
 
-    cea vecInput,0,1              # write input x
-    ste f32t,vector.x,a0
+    cmp eq, a0, 1                       # Option 1 -> Start Training Mode
+    jtr start_train_flow
 
-    mov a0,msg_prompt_y             # print y
+    cmp eq, a0, 2                       # Option 2 -> Start Inference Loop
+    jtr start_use_flow
+
+    ret
+
+start_train_flow:
+    mov a0, 1                           # Set dialog = 1 (Training)
+    cal set_dialog
+
+    mov a0, msg_prompt_x
     syscall SYS_PRINT_LINE_STRING
 
-    mov a0,2                        # set state 2
+    mov a0, 3                           # Advance to State 3: Read X & Prompt Y
     cal set_state
     ret
 
+start_use_flow:
+    mov a0, 2                           # Set dialog = 2 (Inference)
+    cal set_dialog
 
-sbmk "state 2"
-    # === State 2 ===
-    # read y
-    # ask res
-    .state_2:
-    mov a0, buffer
-    cal parse_single_float
-
-    cea vecInput,0,1                    # write input y
-    ste f32t,vector.y,a0
-
-    cea vecInput,0,1                    # write input z (bias==1)
-    ste f32t,vector.z,1.0
-
-    cea temp_pred,0,1                   # save prediction
-    ste f32t,0,a0
-
-    mov a0,msg_prompt_res
+    mov a0, msg_prompt_x                # Directly ask for X
     syscall SYS_PRINT_LINE_STRING
 
-    mov a0,3            # set state 3
+    mov a0, 6                           # Advance to State 6: Read X & Prompt Y
     cal set_state
     ret
 
-sbmk "state 3"
-    # === State 3 ===
-    # read res
-    # change weights / backprop
-    # back state 0
-    # === State 4: Forward Pass + Backpropagation im SELBEN Aufruf ===
-    .state_3:
+# --- Training Flow ---
+
+sbmk "State 3"
+state_3:
     mov a0, buffer
-    cal parse_single_float          # a0 = Zielwert aus Terminal
-    mov s15, a0                     # s15 = Zielwert (y)
+    cal parse_single_float              # Parse Input X
 
-    # 1. Forward Pass berechnen -> setzt s0..s7 gültig im Register-File!
-    cal predict_nn                  # a0 = Vorhersage (y_hat)
+    cea vecInput, 0, 1
+    ste f32t, vector.x, a0              # Store Input X
 
-    # 2. Backpropagation ausführen
-    mov a1, s15                     # a1 = Zielwert (y)
-    cal packprop_nn                 # a0 (y_hat) und a1 (y)
+    mov a0, msg_prompt_y
+    syscall SYS_PRINT_LINE_STRING
 
-    # 3. Ergebnis ausgeben
-    cmp eq,PRINT_NN_IN_TERMINAL,true
-    jfs .print_nn_state3
+    mov a0, 4                           # Advance to State 4: Read Y & Prompt Target Result
+    cal set_state
+    ret
+
+sbmk "State 4"
+state_4:
+    mov a0, buffer
+    cal parse_single_float              # Parse Input Y
+
+    cea vecInput, 0, 1
+    ste f32t, vector.y, a0              # Store Input Y
+
+    cea vecInput, 0, 1
+    ste f32t, vector.z, 1.0             # Store Bias Z = 1.0
+
+    mov a0, msg_prompt_res
+    syscall SYS_PRINT_LINE_STRING
+
+    mov a0, 5                           # Advance to State 5: Execute Training Step
+    cal set_state
+    ret
+
+sbmk "State 5"
+state_5:
+    mov a0, buffer
+    cal parse_single_float              # Parse Target Result (y)
+    mov s15, a0                         # s15 = Target value (y)
+
+    # 1. Forward Pass
+    cal predict_nn                      # a0 = Prediction (y_hat)
+
+    # 2. Backpropagation
+    mov a1, s15                         # a1 = Target value (y)
+    cal packprop_nn                     # Run backprop with a0 (y_hat) and a1 (y)
+
+    # 3. Optional Debug Print
+    cmp eq, PRINT_NN_IN_TERMINAL, true
+    jfs .skip_print
     cal print_nn
-    .print_nn_state3 :
+.skip_print:
 
     mov a0, msg_done
     syscall SYS_PRINT_LINE_STRING
 
+    # Reset dialog back to Main Menu
     mov a0, 0
+    cal set_dialog
+    mov a0, 0
+    cal set_state
+    ret
+
+# --- Inference Flow (Continuous Loop) ---
+
+sbmk "State 6"
+state_6:
+    mov a0, buffer
+    cal parse_single_float              # Read Input X
+
+    cea vecInput, 0, 1
+    ste f32t, vector.x, a0              # Store Input X
+
+    mov a0, msg_prompt_y                # Ask for Input Y
+    syscall SYS_PRINT_LINE_STRING
+
+    mov a0, 7                           # Advance to State 7: Read Y & Predict
+    cal set_state
+    ret
+
+sbmk "State 7"
+state_7:
+    mov a0, buffer
+    cal parse_single_float              # Read Input Y
+
+    cea vecInput, 0, 1
+    ste f32t, vector.y, a0              # Store Input Y
+
+    cea vecInput, 0, 1
+    ste f32t, vector.z, 1.0             # Set Bias Z = 1.0
+
+    # Execute Prediction (prints result internally)
+    cal predict_nn
+
+    # Immediately prompt for the next X (Loop)
+    mov a0, msg_prompt_x
+    syscall SYS_PRINT_LINE_STRING
+
+    mov a0, 6                           # Set state back to 6 for the next run
     cal set_state
     ret
 
@@ -1156,40 +1350,43 @@ vecOut:   res u8t vector.vector_size
 
 bmk "Start "
 _start:
-    # 1. vecInput initialisieren
+     # 1. vecInput init
     mov a0, 1.0
     mov a1, -1.0
     mov a2, 1.0
     mov a3, vecInput
-    cal write_vec3
+    cal vec3_write
 
-    # 2. vecHid1 initialisieren
-    mov a0, -5.0
-    mov a1, 3.0
-    mov a2, 2.0
-    mov a3, vecHid1
-    cal write_vec3
-
-    # 3. vecHid2 initialisieren
-    mov a0, 1.0
-    mov a1, -4.0
-    mov a2, 7.0
-    mov a3, vecHid2
-    cal write_vec3
-
-    # 4. vecHid3 initialisieren
-    mov a0, 2.0
-    mov a1, 3.0
-    mov a2, -7.0
-    mov a3, vecHid3
-    cal write_vec3
-
-    # 5. vecOut initialisieren
+    # 2. vecHid1 init
     mov a0, 1.0
     mov a1, -1.0
+    mov a2, 0.0
+    mov a3, vecHid1
+    cal vec3_write
+
+    # 3. vecHid2 init
+    mov a0, -1.0
+    mov a1, 1.0
+    mov a2, 0.0
+    mov a3, vecHid2
+    cal vec3_write
+
+    # 4. vecHid3 init
+    mov a0, 0.0
+    mov a1, 0.0
     mov a2, 1.0
+    mov a3, vecHid3
+    cal vec3_write
+
+    # 5. vecOut init
+    mov a0, -50.0
+    mov a1, -50.0
+    mov a2, 2.5
     mov a3, vecOut
-    cal write_vec3
+    cal vec3_write
+
+    # start dialog 1 time
+    cal start_dialog
 
     exit
 
@@ -1238,6 +1435,6 @@ _input: # Runs when input state changes.
 
 bmk "Terminal Input"
 _terminal_input:
-    cal train_dialog
+    cal start_dialog
 
     exit

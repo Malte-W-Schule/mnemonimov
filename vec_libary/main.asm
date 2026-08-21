@@ -38,7 +38,7 @@ sbmk "vec3 read cea (storage)"
 
 ## Output
 # a0-a2 :   values x,y,z
-read_vec3:
+vec3_read:
 
     cea a0,0,1                          # load vec adress in a0
     lde f32t,a0,vector.x                # load vec.values into a0-a2
@@ -58,7 +58,7 @@ sbmk "vec3 writes cea (storage)"
 
 ## Output
 
-write_vec3:
+vec3_write:
 
 cea a3,0,1                              # load vec3 address in a3
     ste f32t,vector.x,a0                # write a0-a2 into vec
@@ -80,7 +80,7 @@ sbmk "vec 3 read cea 2vec"
 ## Output
 # a0-a2 :   values x,y,z
 # a3-a5 :   values x,y,z
-read_vec3_2:
+vec3_read_2:
 
     psh a0                              # |a0
 
@@ -109,7 +109,7 @@ sbmk "vec3 writes cea 2"
 # a7        :   vec3 B
 
 ## Output
-write_vec3_2:
+vec3_write_2:
 
     cea a6,0,1                          # read Vec A
     ste f32t,vector.x,a0                # vec A x -> a0
@@ -195,7 +195,6 @@ Vec3_normalize:
 
     ret
 
-
 sbmk "vec3 cross product"
 ## Functionality
 # ( A.Y * B.Z) - (B.Y * A.Z) -> C.X
@@ -238,7 +237,6 @@ Vec3_cross_product:
 
     ret
 
-
 bmk "Vec3 Extra / Help"
 
 sbmk "vec3 create example"
@@ -255,6 +253,83 @@ vec3_read_example:
     cea a0,0,1                          # a0 = vec adress
     lde f32t,a0,vector.x                # load x into a0
 
+    ret
+
+sbmk "vec3 swizzle"
+## Functionality:
+# Re-positions vector
+# Encoding per component (2 bits):
+# 00 = 0.0 (zero)
+# 01 = x
+# 10 = y
+# 11 = z
+
+## Params:
+# a0    : pointer to vec3
+# a1    : binary mask (e.g. 0b11_10_01 for z, y, x)
+
+## Output:
+# a0    : new x
+# a1    : new y
+# a2    : new z
+vec3_swizzle:
+    mov a3, a1                          # Save mask in a3
+    cal vec3_read                       # a0 (ptr) -> loads a0=x, a1=y, a2=z
+
+    # --- New X (Bits 1..0) ---
+    cal swizzle_single                  # Result in a4
+    psh a4                              # Push new X to stack
+
+    # --- New Y (Bits 3..2) ---
+    cal swizzle_single                  # Result in a4
+    psh a4                              # Push new Y to stack
+
+    # --- New Z (Bits 5..4) ---
+    cal swizzle_single                  # Result in a4
+    mov a2, a4                          # a2 = new Z
+
+    # --- Restore X and Y in correct registers ---
+    pop a1                              # pop into a1 = new Y
+    pop a0                              # pop into a0 = new X
+
+    ret
+
+sbmk "swizzle single"
+## Helper: Extracts lowest 2 bits from a3, sets a4, and shifts a3 right by 2
+## Params:
+# a0    : original x
+# a1    : original y
+# a2    : original z
+# a3    : bitmask (shifted by 2 on return)
+## Output:
+# a4    : selected value (0.0, x, y, or z)
+swizzle_single:
+    and a4, a3, 3                       # get 2 lowest bits 0b00_00_[11]
+    sar a3, a3, 2                       # >> mask for the next component
+
+    cmp eq, a4, 0
+    jtr .swizzle_00
+
+    cmp eq, a4, 1
+    jtr .swizzle_01
+
+    cmp eq, a4, 2
+    jtr .swizzle_10
+
+    # else: for 3 (0b11)
+    mov a4, a2                          # 11 -> z
+    ret
+
+.swizzle_00:
+    mov a4, 0.0                         # 00 -> 0.0
+    ret
+
+.swizzle_01:
+    mov a4, a0                          # 01 -> x
+    ret
+
+.swizzle_10:
+    mov a4, a1                          # 10 -> y
     ret
 
 sbmk "vec3 write value example"
@@ -315,7 +390,7 @@ vec3_draw_on_screen:
     mov t0,a0
 
     mov a0,a1                           # vec address in a0, for param cal
-    cal read_vec3                       # get values
+    cal vec3_read                       # get values
     psh a2                              # |a2
     psh a1                              # |a2-a1
 
@@ -358,7 +433,7 @@ vec3_print:
     syscall SYS_PRINT_STRING
 
     pop a0
-    cal read_vec3
+    cal vec3_read
 
     syscall SYS_PRINT_LINE_FLOAT
 
