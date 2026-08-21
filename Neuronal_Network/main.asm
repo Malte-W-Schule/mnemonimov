@@ -416,6 +416,44 @@ vec3_draw_on_screen:
     cal draw_float_on_screen
     ret
 
+
+sbmk "vec3 print"
+
+print_x: emb string "X: "
+print_y: emb string "Y: "
+print_z: emb string "Z: "
+
+## Functionality
+
+## Params
+# a0    :     vec3
+
+## Output
+
+vec3_print:
+
+    psh a0
+
+    mov a0,print_x
+    syscall SYS_PRINT_STRING
+
+    pop a0
+    cal read_vec3
+
+    syscall SYS_PRINT_LINE_FLOAT
+
+    mov a0,print_y
+    syscall SYS_PRINT_STRING
+    mov a0,a1
+    syscall SYS_PRINT_LINE_FLOAT
+
+    mov a0,print_z
+    syscall SYS_PRINT_STRING
+    mov a0,a2
+    syscall SYS_PRINT_LINE_FLOAT
+    ret
+
+
 sbmk "Vec3 x Matrix"
 sbmk "Matrix x Matrix"
 
@@ -542,25 +580,25 @@ predict_nn:
     mov s7,a2
 
 
-    # hidden * output
-    mov a0,s4
-    cal read_vec3                       # load vec b 8output layer) in a0-a2
+    # hidden * output                   # start preparing for dot product
+    mov a0,s4                           # add vec hidden -> a0
+    cal read_vec3                       # vec B (hidden layer) -> a0-a2
 
-    mov a3,s5                           # load vec a in a3-a5
-    mov a4,s6
-    mov a5,s7
+    mov a3,s5                           # vec A.X -> a3 (output layer)..
+    mov a4,s6                           # vec A.Y -> s4
+    mov a5,s7                           # vec A.Z -> s5
 
-    cal vec3_dot_product
-    cal hard_sigmoid
+    cal vec3_dot_product                # calc dot product -> a0
+    cal hard_sigmoid                    # a0 -> sigmoid (0-1) -> a0
 
     psh a0                              # |a0
 
-    mov a0, msg_pred
-    syscall SYS_PRINT_LINE_STRING
+    mov a0, msg_pred                    # print prediction message
+    syscall SYS_PRINT_LINE_STRING       # print
 
     pop a0                              # |     (a0)
     psh a0                              # |a0
-    syscall SYS_PRINT_LINE_FLOAT
+    syscall SYS_PRINT_LINE_FLOAT        # print result
     pop a0                              # |     (a0)
 
     ret
@@ -568,39 +606,39 @@ predict_nn:
 
     ret
 
-sbmk "Back Propagation (*)"
+sbmk "Back Propagation"
 
 ## Params
-# a0 = result (Vorhersage y_hat)
-# a1 = actual result (Zielwert y)
+# a0 = result (predicted value y_hat)
+# a1 = actual result (target value y)
 
 packprop_nn:
-    # 1. Delta am Ausgang berechnen: delta_out = (y_hat - y) * 0.2
+    # 1. Calculate output delta: delta_out = (y_hat - y) * 0.2
     cal calc_delta                      # a0 = y_hat - y
     cal hard_sigmoid_backprop           # a0 = delta_out
-    mov s9, a0                          # s9 = delta_out sichern
+    mov s9, a0                          # Save delta_out to s9
 
-    # 2. Alte Output-Gewichte sichern (werden für Hidden-Backprop gebraucht)
+    # 2. Save old output weights (needed for hidden layer backpropagation)
     mov a0, s4
-    cal read_vec3                       # a0..a2 = alte w_out
-    mov s10, a0                         # alter w_out.x
-    mov s11, a1                         # alter w_out.y
-    mov s12, a2                         # alter w_out.z
+    cal read_vec3                       # a0..a2 = old w_out
+    mov s10, a0                         # old w_out.x
+    mov s11, a1                         # old w_out.y
+    mov s12, a2                         # old w_out.z
 
-    # 3. Output Layer (vecOut) updaten
+    # 3. Update Output Layer (vecOut)
     mov a0, s9                          # delta_out
     mov a1, LEARNRATE
     mov a2, s10                         # oldWeight x
     mov a3, s11                         # oldWeight y
     mov a4, s12                         # oldWeight z
-    mov a5, s5                          # input x (ReLU Zwischenwert 1)
-    mov a6, s6                          # input y (ReLU Zwischenwert 2)
-    mov a7, s7                          # input z (ReLU Zwischenwert 3)
-    cal update_vec3_weights             # liefert neue Gewichte in a0..a2
-    mov a3, s4                          # Zieladresse nach a3
+    mov a5, s5                          # input x (ReLU intermediate value 1)
+    mov a6, s6                          # input y (ReLU intermediate value 2)
+    mov a7, s7                          # input z (ReLU intermediate value 3)
+    cal update_vec3_weights             # returns new weights in a0..a2
+    mov a3, s4                          # Destination address to a3
     cal write_vec3
 
-    # 4. Originale Inputs aus vecInput laden (bleiben für alle 3 Hidden-Updates gleich)
+    # 4. Load original inputs from vecInput (remain identical for all 3 hidden updates)
     mov a0, s0
     cal read_vec3
     mov s13, a0                         # s13 = in.x
@@ -609,35 +647,35 @@ packprop_nn:
 
     # --- Hidden Layer 1/3 (vecHid1) ---
     mov a0, s9                          # delta_out
-    mov a1, s10                         # alter w_out.x
-    mov a2, s5                          # ReLU-Ergebnis 1
+    mov a1, s10                         # old w_out.x
+    mov a2, s5                          # ReLU result 1
     cal relu_backprop                   # a0 = delta_hid1
 
-    psh a0                              # delta_hid1 kurz auf den Stack
+    psh a0                              # Briefly push delta_hid1 onto the stack
     mov a0, s1
     cal read_vec3                       # a0=X, a1=Y, a2=Z
-    mov a4, a2                          # a4 = Z zuerst!
+    mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
-    pop a0                              # delta_hid1 zurückholen
+    pop a0                              # Restore delta_hid1
     mov a1, LEARNRATE
     mov a5, s13                         # in.x
     mov a6, s14                         # in.y
     mov a7, s15                         # in.z
     cal update_vec3_weights
-    mov a3, s1                          # Zieladresse nach a3
+    mov a3, s1                          # Destination address to a3
     cal write_vec3
 
     # --- Hidden Layer 2/3 (vecHid2) ---
     mov a0, s9
-    mov a1, s11                         # alter w_out.y
+    mov a1, s11                         # old w_out.y
     mov a2, s6
     cal relu_backprop                   # a0 = delta_hid2
 
     psh a0
     mov a0, s2
     cal read_vec3                       # a0=X, a1=Y, a2=Z
-    mov a4, a2                          # a4 = Z zuerst!
+    mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
     pop a0
@@ -651,14 +689,14 @@ packprop_nn:
 
     # --- Hidden Layer 3/3 (vecHid3) ---
     mov a0, s9
-    mov a1, s12                         # alter w_out.z
+    mov a1, s12                         # old w_out.z
     mov a2, s7
     cal relu_backprop                   # a0 = delta_hid3
 
     psh a0
     mov a0, s3
     cal read_vec3                       # a0=X, a1=Y, a2=Z
-    mov a4, a2                          # a4 = Z zuerst!
+    mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
     pop a0
@@ -672,13 +710,13 @@ packprop_nn:
 
     ret
 
-
 sbmk "train step"
 
 print_train: emb string "Train With values X,Y,Z,result"
 print_res: emb string "actual result: "
 
-## Fu
+## Function
+# predicts, backprops and prints nn
 
 ## Params
 # s0 input vec
@@ -692,18 +730,11 @@ train_nn:
 
     cal predict_nn
     cal packprop_nn
-
     cal print_nn
 
     ret
 
-
-
-
-
-
-sbmk "print nn"
-
+sbmk "print nn text"
 
 print_line: emb string "=========================================="
 print_input: emb string "input layer"
@@ -711,42 +742,6 @@ print_hid1: emb string "Hidden Layer 1/3"
 print_hid2: emb string "Hidden Layer 2/3"
 print_hid3: emb string "Hidden Layer 3/3"
 print_output: emb string "output layer"
-print_x: emb string "X: "
-print_y: emb string "Y: "
-print_z: emb string "Z: "
-
-
-sbmk "print vec3"
-
-## Functionality
-
-## Params
-# a0    :     vec3
-
-## Output
-
-print_vec3:
-
-    psh a0
-
-    mov a0,print_x
-    syscall SYS_PRINT_STRING
-
-    pop a0
-    cal read_vec3
-
-    syscall SYS_PRINT_LINE_FLOAT
-
-    mov a0,print_y
-    syscall SYS_PRINT_STRING
-    mov a0,a1
-    syscall SYS_PRINT_LINE_FLOAT
-
-    mov a0,print_z
-    syscall SYS_PRINT_STRING
-    mov a0,a2
-    syscall SYS_PRINT_LINE_FLOAT
-    ret
 
 print_nn:
 
@@ -756,27 +751,27 @@ print_nn:
     mov a0,print_input                      # print Input layer
     syscall SYS_PRINT_LINE_STRING
     mov a0,vecInput
-    cal print_vec3
+    cal vec3_print
 
     mov a0,print_hid1                       # print hidden layer 1/3
     syscall SYS_PRINT_LINE_STRING
     mov a0,vecHid1
-    cal print_vec3
+    cal vec3_print
 
     mov a0,print_hid2                       # print hidden layer 2/3
     syscall SYS_PRINT_LINE_STRING
     mov a0,vecHid2
-    cal print_vec3
+    cal vec3_print
 
     mov a0,print_hid3                       # print hidden layer 3/3
     syscall SYS_PRINT_LINE_STRING
     mov a0,vecHid3
-    cal print_vec3
+    cal vec3_print
 
     mov a0,print_output                     # print output layer
     syscall SYS_PRINT_LINE_STRING
     mov a0,vecOut
-    cal print_vec3
+    cal vec3_print
 
     mov a0,print_line                       # pretty line ===
     syscall SYS_PRINT_LINE_STRING

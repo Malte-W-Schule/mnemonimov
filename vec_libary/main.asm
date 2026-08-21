@@ -334,3 +334,42 @@ vec3_draw_on_screen:
     pop a1                              # |     (a2)
     cal draw_float_on_screen
     ret
+
+
+
+sbmk "vec3 print"
+
+print_x: emb string "X: "
+print_y: emb string "Y: "
+print_z: emb string "Z: "
+
+## Functionality
+
+## Params
+# a0    :     vec3
+
+## Output
+
+vec3_print:
+
+    psh a0
+
+    mov a0,print_x
+    syscall SYS_PRINT_STRING
+
+    pop a0
+    cal read_vec3
+
+    syscall SYS_PRINT_LINE_FLOAT
+
+    mov a0,print_y
+    syscall SYS_PRINT_STRING
+    mov a0,a1
+    syscall SYS_PRINT_LINE_FLOAT
+
+    mov a0,print_z
+    syscall SYS_PRINT_STRING
+    mov a0,a2
+    syscall SYS_PRINT_LINE_FLOAT
+    ret
+
