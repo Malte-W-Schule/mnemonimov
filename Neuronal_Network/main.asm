@@ -33,18 +33,18 @@ sbmk "draw_float_on_screen"
 draw_float_on_screen:
 
 
-    mov a4, 80                          # luma
+    mov a4, 80                          # set luma
 
-    cmp flt,a1,0.0                      # if float neg
+    cmp flt,a1,0.0                      # if float < 0.0
     jtr .draw_float
 
-    mov a4,255
+    mov a4,255                          # if false (pos) set luma to 255
     .draw_float:
 
-    fabs a3,a1
+    fabs a3,a1                          # calc y height (depth)
 
-    fmul a3,a3,10.0                     # y size
-    fcti a3,a3
+    fmul a3,a3,10.0                     # mul by 10
+    fcti a3,a3                          # convert to int
 
     cmp eq,a3,0                         # if value = 0, draw one pixel
     jfs .draw_not_0
@@ -52,34 +52,37 @@ draw_float_on_screen:
     mov a3,1
     .draw_not_0:
 
-    mov a1, 10                          # y pos
-    mov a2, 10                          # x size
+    mov a1, 10                          # set y pos
+    mov a2, 10                          # set x size
 
     # Args: a0:pos_x, a1:pos_y, a2:size_x, a3:size_y, a4:luma
     syscall SYS_DRAW_RECT
     ret
 
 sbmk "Parse Single Float"
-## Wandelt den ASCII-String an Adresse a0 in einen Float um
+## Functionality
+# Converts the ASCII string at address a0 into a float
+
 ## Params:
-# a0 = Adresse des ASCII-Strings (z. B. term_buffer)
+# a0 = Address of the ASCII string (e.g., term_buffer)
+
 ## Output:
-# a0 = Berechneter Float-Wert
+# a0 = Calculated float value
 
 parse_single_float:
-    mov t6, a0                          # t6 als Lesezeiger verwenden (damit a0 frei wird)
+    mov t6, a0                          # t0 <- a0
 
-    mov t1, 1.0                         # Vorzeichen (1.0 = positiv, -1.0 = negativ)
-    mov t2, 0.0                         # Vorkomma-Summe
-    mov t3, 0.0                         # Nachkomma-Summe
-    mov t4, 0.1                         # Nachkomma-Schrittweite (* 0.1, * 0.01, ...)
-    mov t5, 0                           # 0 = Vorkomma-Modus, 1 = Nachkomma-Modus
+    mov t1, 1.0                         # (1.0 = positive, -1.0 = negative)
+    mov t2, 0.0                         # pre dot -Sum
+    mov t3, 0.0                         # post dot -sum
+    mov t4, 0.1                         # post dot, index (* 0.1, * 0.01, ...)
+    mov t5, 0                           # 0 = pre dot mode, 1 = post dot mode
 
-    # Erstes Zeichen auf Vorzeichen prüfen
+    # Check first character for sign
     cea t6, 0, 1
     lde u8t, t0, 0
 
-    # Vorzeichen '-' (ASCII 45)
+    # Minus sign '-' (ASCII 45)
     cmp eq, t0, 45
     jfsa .digit_loop
     mov t1, -1.0
@@ -89,7 +92,7 @@ parse_single_float:
     cea t6, 0, 1
     lde u8t, t0, 0
 
-    # Ende bei String-Ende (0), Zeilenumbruch (10) oder Carriage Return (13)
+    # Terminate on null terminator (0), newline (10), or carriage return (13)
     cmp eq, t0, 0
     jtra .done
     cmp eq, t0, 10
@@ -97,36 +100,36 @@ parse_single_float:
     cmp eq, t0, 13
     jtra .done
 
-    # Dezimalpunkt '.' (ASCII 46)
+    # Decimal point '.' (ASCII 46)
     cmp eq, t0, 46
     jfsa .handle_num
-    mov t5, 1                           # In den Nachkomma-Modus wechseln
+    mov t5, 1                           # Switch to fractional (post-dot) mode
     add t6, t6, 1
     jmp .digit_loop
 
 .handle_num:
-    sub t0, t0, 48                      # ASCII ('0'..'9') zu Integer (0..9)
-    fctf t0, t0                         # Int zu Float
+    sub t0, t0, 48                      # ASCII ('0'..'9') to integer (0..9)
+    fctf t0, t0                         # Int to float
 
     cmp eq, t5, 0
     jfsa .after_dot
 
-    # --- Vor dem Komma ---
+    # --- Integer part (before decimal point) ---
     fmul t2, t2, 10.0
     fadd t2, t2, t0
     add t6, t6, 1
     jmp .digit_loop
 
 .after_dot:
-    # --- Nach dem Komma ---
+    # --- Fractional part (after decimal point) ---
     ffma t3, t0, t4, t3
     fmul t4, t4, 0.1
     add t6, t6, 1
     jmp .digit_loop
 
 .done:
-fadd a0, t2, t3                         # Vorkomma + Nachkomma
-fmul a0, a0, t1                         # Mit Vorzeichen verrechnen
+    fadd a0, t2, t3                     # Integer part + fractional part
+    fmul a0, a0, t1                     # Apply sign
     ret
 
 
@@ -165,8 +168,8 @@ sbmk "vec3 read cea (storage)"
 # a0-a2 :   values x,y,z
 read_vec3:
 
-    cea a0,0,1
-    lde f32t,a0,vector.x
+    cea a0,0,1                          # load vec adress in a0
+    lde f32t,a0,vector.x                # load vec.values into a0-a2
     lde f32t,a1,vector.y
     lde f32t,a2,vector.z
 
@@ -185,8 +188,8 @@ sbmk "vec3 writes cea (storage)"
 
 write_vec3:
 
-    cea a3,0,1
-    ste f32t,vector.x,a0
+cea a3,0,1                              # load vec3 address in a3
+    ste f32t,vector.x,a0                # write a0-a2 into vec
     ste f32t,vector.y,a1
     ste f32t,vector.z,a2
 
@@ -207,17 +210,17 @@ sbmk "vec 3 read cea 2vec"
 # a3-a5 :   values x,y,z
 read_vec3_2:
 
-    psh a0
+    psh a0                              # |a0
 
-    mov a0,a1
+    mov a0,a1                           # move to load adress -> a0
     cea a0,0,1                          # load Vec B
-    lde f32t,a3,vector.x
+    lde f32t,a3,vector.x                # load vec B values -> a3-a5
     lde f32t,a4,vector.y
     lde f32t,a5,vector.z
 
-    pop a0
+    pop a0                              # |     (a0)
     cea a0,0,1                          # load Vec A
-    lde f32t,a0,vector.x
+    lde f32t,a0,vector.x                # load Vec A values -> a0-a2
     lde f32t,a1,vector.y
     lde f32t,a2,vector.z
 
@@ -236,22 +239,20 @@ sbmk "vec3 writes cea 2"
 ## Output
 write_vec3_2:
 
-    cea a0,0,1                          # read Vec B
-    ste f32t,vector.x,a4
-    ste f32t,vector.y,a5
-    ste f32t,vector.z,a6
+    cea a6,0,1                          # read Vec A
+    ste f32t,vector.x,a0                # vec A x -> a0
+    ste f32t,vector.y,a1                # Vec A y -> a1
+    ste f32t,vector.z,a2                # Vec A z -> a2
 
-    cea a0,0,1                          # read Vec A
-    ste f32t,vector.x,a1
-    ste f32t,vector.y,a2
-    ste f32t,vector.z,a3
-
+    cea a7,0,1                          # read Vec B
+    ste f32t,vector.x,a3                # Vec B x -> A3
+    ste f32t,vector.y,a4                # Vec B y -> A4
+    ste f32t,vector.z,a5                # Vec B z -> A5
 
     ret
 
 bmk "Vec3 Calculations"
 sbmk "vec3 dot product"
-
 ## Functionality
 # calculates the dot product of 2 vectors
 
@@ -263,10 +264,10 @@ sbmk "vec3 dot product"
 # a0    : single value representing dot product of both vectors
 
 vec3_dot_product:
-    vffma a0..a2,a0..,a3..,zr    # mutiplaying A.X * B.X -> A.X ...
+    vffma a0..a2,a0..,a3..,zr           # mutiplaying A.X * B.X -> A.X ...
 
-    fadd a0,a0,a1            # X+Y+Z -> A.X
-    fadd a0,a0,a2
+    fadd a0,a0,a1                       # X+Y -> A.X (a0)
+    fadd a0,a0,a2                       # (X+Y) + Z -> A.X (a0)
 
     ret
 
@@ -283,10 +284,10 @@ sbmk "vec3 magnitute"
 # a0    :   magnitute / lenght of vector
 
 Vec3_magnitute:
-    fmul t0, a0, a0     # X*X
-    ffma t0,a1,a1,t0    # Y*Y + (x^2)
-    ffma a0,a2,a2,t0    # Z*Z + (x^2 + y^2)
-    fsqrt a0, a0        # sqrt()
+    fmul t0, a0, a0                     # X*X
+    ffma t0,a1,a1,t0                    # Y*Y + (x^2)
+    ffma a0,a2,a2,t0                    # Z*Z + (x^2 + y^2)
+    fsqrt a0, a0                        # sqrt()
     ret
 
 sbmk "vec3 normalize"
@@ -302,29 +303,28 @@ sbmk "vec3 normalize"
 Vec3_normalize:
 
     # Save Vec A
-    psh a0
-    psh a1
-    psh a2
+    psh a0                              # |a0
+    psh a1                              # |a0-a1
+    psh a2                              # |a0-a1-a2
 
     # calc Vec A magnitude
     cal Vec3_magnitute
-    mov t0,a0
+    mov t0,a0                           # magnitute result -> t0
 
     # restore Vec A
-    pop a2
-    pop a1
-    pop a0
+    pop a2                              # |a0-a1    (a2)
+    pop a1                              # |a0       (a1)
+    pop a0                              # |         (a0)
 
     # normalize each value
-    fdiv a0, a0, t0          #add = div / sor
-    fdiv a1, a1, t0
-    fdiv a2, a2, t0
+    fdiv a0, a0, t0                     #add = div / sor    x/x^
+    fdiv a1, a1, t0                     #                   y/y^
+    fdiv a2, a2, t0                     #                   z/z^
 
     ret
 
 
 sbmk "vec3 cross product"
-
 ## Functionality
 # ( A.Y * B.Z) - (B.Y * A.Z) -> C.X
 # ( A.Z * B.X) - (B.Z * A.X) -> C.Y
@@ -339,31 +339,30 @@ sbmk "vec3 cross product"
 
 Vec3_cross_product:
 
-    mov t3,a0
-    mov t4,a1
-    mov t5,a2
+    mov t3,a0                           # a0 -> t3 (x)
+    mov t4,a1                           # a1 -> t4 (y)
+    mov t5,a2                           # a2 -> t5 (z)
 
-    # 3 = x
-    # 4 = y
-    # 5 = z
-
+    # X
     # ( A.Y * B.Z) - (B.Y * A.Z) -> C.X
-    fmul t0,t4,a5
-    fmul t1,a4,t5
+    fmul t0,t4,a5                       # ( A.Y * B.Z)
+    fmul t1,a4,t5                       # (B.Y * A.Z)
 
-    fsub a0,t0,t1   # X = /
+    fsub a0,t0,t1                       # X = () - ()
 
+    # Y
     # ( A.Z * B.X) - (B.Z * A.X) -> C.Y
-    fmul t0,t5,a3
-    fmul t1,a5,t3
+    fmul t0,t5,a3                       # ( A.Z * B.X)
+    fmul t1,a5,t3                       # (B.Z * A.X)
 
-    fsub a1,t0,t1   # Y = /
+    fsub a1,t0,t1                       # Y = () - ()
 
+    # Z
     # ( A.X * B.Y) - (B.X * A.Y) -> C.Z
-    fmul t0,t3,a4
-    fmul t1,a3,t4
+    fmul t0,t3,a4                       # ( A.X * B.Y)
+    fmul t1,a3,t4                       # (B.X * A.Y)
 
-    fsub a2,t0,t1   # Z = /
+    fsub a2,t0,t1                       # Z = () - ()
 
     ret
 
@@ -371,8 +370,8 @@ Vec3_cross_product:
 bmk "Vec3 Extra / Help"
 
 sbmk "vec3_draw_on_screen"
-
 ## Functionality
+# draws a vec3 on the (lcd) screen, starting from x, and y is the "value" of the float
 
 ## Params
 # a0    :   start x coordinate
@@ -384,10 +383,11 @@ vec3_draw_on_screen:
 
     mov t0,a0
 
-    mov a0,a1               # vec address in a0, for param cal
-    cal read_vec3           # get values
-    psh a2                  # |a2
-    psh a1                  # |a2-a1
+    mov a0,a1                           # vec address in a0, for param cal
+    cal read_vec3                       # get values
+    psh a2                              # |a2
+    psh a1                              # |a2-a1
+
 
     mov a1,a0
     mov a0,t0
@@ -395,12 +395,12 @@ vec3_draw_on_screen:
 
     add t0,t0,15
     mov a0,t0
-    pop a1                  # |a2-  (a1)
+    pop a1                              # |a2-  (a1)
     cal draw_float_on_screen
 
      add t0,t0,15
     mov a0,t0
-    pop a1                  # |     (a2)
+    pop a1                              # |     (a2)
     cal draw_float_on_screen
     ret
 
@@ -670,7 +670,9 @@ sbmk "train step"
 print_train: emb string "Train With values X,Y,Z,result"
 print_res: emb string "actual result: "
 
-# PARAMS
+## Fu
+
+## Params
 # s0 input vec
 # s1 hid layer vec 1/3
 # s2 hid layer vec 2/3
