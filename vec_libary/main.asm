@@ -14,6 +14,8 @@ bmk "Readme"
 # - allowing to read vec3 (a0-a2) -> write (a0-a2) tho
 # - withouth swapping all the values
 #
+# there is also an vec3_tmp "storage" per default givin in this libary allowing for
+# temporarily saving a result to it and then reading the values via vec3_read
 bmk "Vec3 Basics"
 
 sbmk "vec3 struct"
@@ -29,9 +31,10 @@ vector:
     def .vector_size ( $ - vector)      # size 12
 
 
-sbmk "vec3 read cea (storage)"
+sbmk "vec3 read"
 ## Functionality
 # loads the values x,y,z from a given vec a0 into a0-a2
+# into c ea
 
 ## Params
 # a0    :   vec3 (adress) to load
@@ -48,9 +51,9 @@ vec3_read:
     ret
 
 
-sbmk "vec3 writes cea (storage)"
+sbmk "vec3 write"
 ## Functionality
-# writes vec into cae
+# writes vec into c ae
 
 ## Params
 # a0-a2     :   values Vec A
@@ -120,6 +123,45 @@ vec3_write_2:
     ste f32t,vector.x,a3                # Vec B x -> A3
     ste f32t,vector.y,a4                # Vec B y -> A4
     ste f32t,vector.z,a5                # Vec B z -> A5
+
+    ret
+
+sbmk "vec3 swizzle"
+## Functionality:
+# Re-positions vector
+# Encoding per component (2 bits):
+# 00 = 0.0 (zero)
+# 01 = x
+# 10 = y
+# 11 = z
+
+## Params:
+# a0    : pointer to vec3
+# a1    : binary mask (e.g. 0b11_10_01 for z, y, x)
+
+## Output:
+# a0    : new x
+# a1    : new y
+# a2    : new z
+vec3_swizzle:
+    mov a3, a1                          # Save mask in a3
+    cal vec3_read                       # a0 (ptr) -> loads a0=x, a1=y, a2=z
+
+    # X
+    cal swizzle_single                  # Result in a4
+    psh a4                              # Push new X to stack
+
+    # Y
+    cal swizzle_single                  # Result in a4
+    psh a4                              # Push new Y to stack
+
+    # Z
+    cal swizzle_single                  # Result in a4
+    mov a2, a4                          # a2 = new Z
+
+    # restor x and y in old regs
+    pop a1                              # pop into a1 = new Y
+    pop a0                              # pop into a0 = new X
 
     ret
 
@@ -237,7 +279,7 @@ Vec3_cross_product:
 
     ret
 
-bmk "Vec3 Extra / Help"
+bmk "Vec3 examples"
 
 sbmk "vec3 create example"
 # vec-name: res u8t vector.vector_size (allowcates vector size storage for vec)
@@ -255,126 +297,18 @@ vec3_read_example:
 
     ret
 
-sbmk "vec3 swizzle"
-## Functionality:
-# Re-positions vector
-# Encoding per component (2 bits):
-# 00 = 0.0 (zero)
-# 01 = x
-# 10 = y
-# 11 = z
 
-## Params:
-# a0    : pointer to vec3
-# a1    : binary mask (e.g. 0b11_10_01 for z, y, x)
 
-## Output:
-# a0    : new x
-# a1    : new y
-# a2    : new z
-vec3_swizzle:
-    mov a3, a1                          # Save mask in a3
-    cal vec3_read                       # a0 (ptr) -> loads a0=x, a1=y, a2=z
-
-    # --- New X (Bits 1..0) ---
-    cal swizzle_single                  # Result in a4
-    psh a4                              # Push new X to stack
-
-    # --- New Y (Bits 3..2) ---
-    cal swizzle_single                  # Result in a4
-    psh a4                              # Push new Y to stack
-
-    # --- New Z (Bits 5..4) ---
-    cal swizzle_single                  # Result in a4
-    mov a2, a4                          # a2 = new Z
-
-    # --- Restore X and Y in correct registers ---
-    pop a1                              # pop into a1 = new Y
-    pop a0                              # pop into a0 = new X
-
-    ret
-
-sbmk "swizzle single"
-## Helper: Extracts lowest 2 bits from a3, sets a4, and shifts a3 right by 2
-## Params:
-# a0    : original x
-# a1    : original y
-# a2    : original z
-# a3    : bitmask (shifted by 2 on return)
-## Output:
-# a4    : selected value (0.0, x, y, or z)
-swizzle_single:
-    and a4, a3, 3                       # get 2 lowest bits 0b00_00_[11]
-    sar a3, a3, 2                       # >> mask for the next component
-
-    cmp eq, a4, 0
-    jtr .swizzle_00
-
-    cmp eq, a4, 1
-    jtr .swizzle_01
-
-    cmp eq, a4, 2
-    jtr .swizzle_10
-
-    # else: for 3 (0b11)
-    mov a4, a2                          # 11 -> z
-    ret
-
-.swizzle_00:
-    mov a4, 0.0                         # 00 -> 0.0
-    ret
-
-.swizzle_01:
-    mov a4, a0                          # 01 -> x
-    ret
-
-.swizzle_10:
-    mov a4, a1                          # 10 -> y
-    ret
 
 sbmk "vec3 write value example"
 vec3_write_example:
     cea a0,0,1                          # a0 = vec adress
      ste f32t,vector.x,a5               # a5 = new value (vector.x/.y/.z depending on which value)
 
-sbmk "draw_float_on_screen"
-## Functionality
-
-## Params
-# a0    :   start x coordinate
-# a1    :   to draw float
-
-## Output
-draw_float_on_screen:
 
 
-    mov a4, 80                          # set luma
 
-    cmp flt,a1,0.0                      # if float < 0.0
-    jtr .draw_float
-
-    mov a4,255                          # if false (pos) set luma to 255
-    .draw_float:
-
-    fabs a3,a1                          # calc y height (depth)
-
-    fmul a3,a3,10.0                     # mul by 10
-    fcti a3,a3                          # convert to int
-
-    cmp eq,a3,0                         # if value = 0, draw one pixel
-    jfs .draw_not_0
-
-    mov a3,1
-    .draw_not_0:
-
-    mov a1, 10                          # set y pos
-    mov a2, 10                          # set x size
-
-    # Args: a0:pos_x, a1:pos_y, a2:size_x, a3:size_y, a4:luma
-    syscall SYS_DRAW_RECT
-    ret
-
-
+bmk "Vec3 draw/print"
 sbmk "vec3_draw_on_screen"
 ## Functionality
 # draws a vec3 on the (lcd) screen, starting from x, and y is the "value" of the float
@@ -448,3 +382,86 @@ vec3_print:
     syscall SYS_PRINT_LINE_FLOAT
     ret
 
+bmk "vec3 helper functions"
+
+sbmk "vec3 tmp"
+
+vec3_tmp: res u8t vector.vector_size
+
+sbmk "swizzle single"
+## Helper: Extracts lowest 2 bits from a3, sets a4, and shifts a3 right by 2
+## Params:
+# a0    : original x
+# a1    : original y
+# a2    : original z
+# a3    : bitmask (shifted by 2 on return)
+## Output:
+# a4    : selected value (0.0, x, y, or z)
+swizzle_single:
+    and a4, a3, 3                       # get 2 lowest bits 0b00_00_[11]
+    sar a3, a3, 2                       # >> mask for the next component
+
+    cmp eq, a4, 0
+    jtr .swizzle_00
+
+    cmp eq, a4, 1
+    jtr .swizzle_01
+
+    cmp eq, a4, 2
+    jtr .swizzle_10
+
+    # else: for 3 (0b11)
+    mov a4, a2                          # 11 -> z
+    ret
+
+.swizzle_00:
+    mov a4, 0.0                         # 00 -> 0.0
+    ret
+
+.swizzle_01:
+    mov a4, a0                          # 01 -> x
+    ret
+
+.swizzle_10:
+    mov a4, a1                          # 10 -> y
+    ret
+
+
+sbmk "draw_float_on_screen"
+## Functionality
+
+## Params
+# a0    :   start x coordinate
+# a1    :   to draw float
+
+## Output
+draw_float_on_screen:
+
+
+    mov a4, 80                          # set luma
+
+    cmp flt,a1,0.0                      # if float < 0.0
+    jtr .draw_float
+
+    mov a4,255                          # if false (pos) set luma to 255
+    .draw_float:
+
+    fabs a3,a1                          # calc y height (depth)
+
+    fmul a3,a3,10.0                     # mul by 10
+    fcti a3,a3                          # convert to int
+
+    cmp eq,a3,0                         # if value = 0, draw one pixel
+    jfs .draw_not_0
+
+    mov a3,1
+    .draw_not_0:
+
+    mov a1, 10                          # set y pos
+    mov a2, 10                          # set x size
+
+    # Args: a0:pos_x, a1:pos_y, a2:size_x, a3:size_y, a4:luma
+    syscall SYS_DRAW_RECT
+    ret
+
+bmk "vec3 end"
