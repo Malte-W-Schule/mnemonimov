@@ -381,44 +381,6 @@ vec3_write_example:
     cea a0,0,1                          # a0 = vec adress
      ste f32t,vector.x,a5               # a5 = new value (vector.x/.y/.z depending on which value)
 
-sbmk "draw_float_on_screen"
-## Functionality
-
-## Params
-# a0    :   start x coordinate
-# a1    :   to draw float
-
-## Output
-draw_float_on_screen:
-
-
-    mov a4, 80                          # set luma
-
-    cmp flt,a1,0.0                      # if float < 0.0
-    jtr .draw_float
-
-    mov a4,255                          # if false (pos) set luma to 255
-    .draw_float:
-
-    fabs a3,a1                          # calc y height (depth)
-
-    fmul a3,a3,10.0                     # mul by 10
-    fcti a3,a3                          # convert to int
-
-    cmp eq,a3,0                         # if value = 0, draw one pixel
-    jfs .draw_not_0
-
-    mov a3,1
-    .draw_not_0:
-
-    mov a1, 10                          # set y pos
-    mov a2, 10                          # set x size
-
-    # Args: a0:pos_x, a1:pos_y, a2:size_x, a3:size_y, a4:luma
-    syscall SYS_DRAW_RECT
-    ret
-
-
 sbmk "vec3_draw_on_screen"
 ## Functionality
 # draws a vec3 on the (lcd) screen, starting from x, and y is the "value" of the float
@@ -596,10 +558,10 @@ predict_nn:
     mov a0, msg_pred
     syscall SYS_PRINT_LINE_STRING
 
-    pop a0                              # | (a0)
+    pop a0                              # |     (a0)
     psh a0                              # |a0
     syscall SYS_PRINT_LINE_FLOAT
-    pop a0                              # | (a0)
+    pop a0                              # |     (a0)
 
     ret
 
