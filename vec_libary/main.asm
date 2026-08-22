@@ -90,6 +90,93 @@ vec3_copy:
     cal vec3_store                      # Store a0..a2 into dst (a3)
     ret
 
+bmk "Vec3 single access"
+
+sbmk "vec3 load x"
+## Functionality:
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# a0    : x
+
+vec3_load_x:
+    cea a0, 0, 1                        # Load vec address into CEA
+    lde f32t, a0, vector.x              # a0 <- x
+    ret
+
+sbmk "vec3 load y"
+## Functionality:
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# a0    : y
+
+vec3_load_y:
+    cea a0, 0, 1                        # Load vec address into CEA
+    lde f32t, a0, vector.y              # a0 <- y
+    ret
+
+sbmk "vec3 load z"
+## Functionality:
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# a0    : z
+
+vec3_load_z:
+    cea a0, 0, 1                        # Load vec address into CEA
+    lde f32t, a0, vector.z              # a0 <- z
+    ret
+
+sbmk "vec3 store x"
+## Functionality: Stores registers a0..a2 into memory address a3
+
+## Params:
+# a0    :   value x
+# a1    :   destination vec3 add (dst)
+
+## Output:
+# none
+vec3_store_x:
+    cea a1, 0, 1                        # Load destination address into CEA
+    ste f32t, vector.x, a0              # Store x
+    ret
+
+sbmk "vec3 store y"
+## Functionality: Stores registers a0..a2 into memory address a3
+
+## Params:
+# a0    :   value y
+# a1    :   destination vec3 add (dst)
+
+## Output:
+# none
+vec3_store_y:
+    cea a1, 0, 1                        # Load destination address into CEA
+    ste f32t, vector.x, a0              # Store y
+    ret
+
+sbmk "vec3 store z"
+## Functionality: Stores registers a0..a2 into memory address a3
+
+## Params:
+# a0    :   value z
+# a1    :   destination vec3 add (dst)
+
+## Output:
+# none
+vec3_store_z:
+    cea a1, 0, 1                        # Load destination address into CEA
+    ste f32t, vector.x, a0              # Store z
+    ret
+
+
 bmk "Vec3 Advanced"
 
 sbmk "vec3 load 2"
