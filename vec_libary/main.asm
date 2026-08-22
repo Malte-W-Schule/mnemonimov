@@ -2,7 +2,7 @@ bmk "Readme"
 # ==============================================================================
 # Vec3 Math & Utility Library
 # ==============================================================================
-# Version: 1.0
+# Version: 1.1
 #
 # OVERVIEW:
 # A 3D single-precision float vector library
