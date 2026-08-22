@@ -732,108 +732,75 @@ predict_nn:
     syscall SYS_PRINT_LINE_FLOAT        # print result
 
     ret
-
 sbmk "Back Propagation *"
 
-## Params
-# a0 = result (predicted value y_hat)
-# a1 = actual result (target value y)
+## Params:
+# a0 = predicted value (y_hat)
+# a1 = target value (y)
 
 packprop_nn:
-    # 1. Calculate output delta: delta_out = (y_hat - y) * 0.2
+
+    # --- Output Layer Delta: delta_out = (y_hat - y) * 0.2 ---
     cal calc_delta                      # a0 = y_hat - y
     cal hard_sigmoid_backprop           # a0 = delta_out
-    mov s9, a0                          # Save delta_out to s9
+    mov s0, a0                          # s0 = delta_out
 
-    # 2. Save old output weights (needed for hidden layer backpropagation)
-    mov a0, s4
-    cal vec3_load                       # a0..a2 = old w_out
-    mov s10, a0                         # old w_out.x
-    mov s11, a1                         # old w_out.y
-    mov s12, a2                         # old w_out.z
+    # --- Preserve Unmodified Output Weights (w_out) for Hidden Layer Deltas ---
+    mov a0, vecOut
+    cal vec3_load                       # a0=w_out.x, a1=w_out.y, a2=w_out.z
+    mov s1, a0                          # s1 = old w_out.x
+    mov s2, a1                          # s2 = old w_out.y
+    mov s3, a2                          # s3 = old w_out.z
 
-    # 3. Update Output Layer (vecOut)
-    mov a0, s9                          # delta_out
-    mov a1, LEARNRATE
-    mov a2, s10                         # oldWeight x
-    mov a3, s11                         # oldWeight y
-    mov a4, s12                         # oldWeight z
-    mov a5, s5                          # input x (ReLU intermediate value 1)
-    mov a6, s6                          # input y (ReLU intermediate value 2)
-    mov a7, s7                          # input z (ReLU intermediate value 3)
-    cal update_vec3_weights             # returns new weights in a0..a2
-    mov a3, s4                          # Destination address to a3
-    cal vec3_store
+    # --- Update Output Weights: vecOut <- vecOut - (lr * delta_out) * vecHidRes ---
+    mov a0, s0                          # a0 = delta_out
+    mov a1, LEARNRATE                   # a1 = learning rate
+    mov a2, vecOut                      # a2 = src old weights
+    mov a3, vecHidRes                   # a3 = src inputs (hidden layer activations)
+    mov a4, vecOut                      # a4 = dst updated weights
+    cal update_vec3_weights
 
-    # 4. Load original inputs from vecInput (remain identical for all 3 hidden updates)
-    mov a0, s0
-    cal vec3_load
-    mov s13, a0                         # s13 = in.x
-    mov s14, a1                         # s14 = in.y
-    mov s15, a2                         # s15 = in.z
-
-    # --- Hidden Layer 1/3 (vecHid1) ---
-    mov a0, s9                          # delta_out
-    mov a1, s10                         # old w_out.x
-    mov a2, s5                          # ReLU result 1
+    # --- Hidden Layer 1 (vecHid1) Update ---
+    mov a0, vecHidRes
+    cal vec3_load_x                     # a0 = relu_result_1
+    mov a2, a0                          # a2 = relu_result
+    mov a0, s0                          # a0 = delta_out
+    mov a1, s1                          # a1 = old w_out.x
     cal relu_backprop                   # a0 = delta_hid1
 
-    psh a0                              # Briefly push delta_hid1 onto the stack
-    mov a0, s1
-    cal vec3_load                       # a0=X, a1=Y, a2=Z
-    mov a4, a2                          # a4 = Z first!
-    mov a3, a1                          # a3 = Y
-    mov a2, a0                          # a2 = X
-    pop a0                              # Restore delta_hid1
     mov a1, LEARNRATE
-    mov a5, s13                         # in.x
-    mov a6, s14                         # in.y
-    mov a7, s15                         # in.z
+    mov a2, vecHid1                     # a2 = src old weights
+    mov a3, vecInput                    # a3 = src network inputs
+    mov a4, vecHid1                     # a4 = dst updated weights
     cal update_vec3_weights
-    mov a3, s1                          # Destination address to a3
-    cal vec3_store
 
-    # --- Hidden Layer 2/3 (vecHid2) ---
-    mov a0, s9
-    mov a1, s11                         # old w_out.y
-    mov a2, s6
+    # --- Hidden Layer 2 (vecHid2) Update ---
+    mov a0, vecHidRes
+    cal vec3_load_y                     # a0 = relu_result_2
+    mov a2, a0                          # a2 = relu_result
+    mov a0, s0                          # a0 = delta_out
+    mov a1, s2                          # a1 = old w_out.y
     cal relu_backprop                   # a0 = delta_hid2
 
-    psh a0
-    mov a0, s2
-    cal vec3_load                       # a0=X, a1=Y, a2=Z
-    mov a4, a2                          # a4 = Z first!
-    mov a3, a1                          # a3 = Y
-    mov a2, a0                          # a2 = X
-    pop a0
     mov a1, LEARNRATE
-    mov a5, s13
-    mov a6, s14
-    mov a7, s15
+    mov a2, vecHid2                     # a2 = src old weights
+    mov a3, vecInput                    # a3 = src network inputs
+    mov a4, vecHid2                     # a4 = dst updated weights
     cal update_vec3_weights
-    mov a3, s2
-    cal vec3_store
 
-    # --- Hidden Layer 3/3 (vecHid3) ---
-    mov a0, s9
-    mov a1, s12                         # old w_out.z
-    mov a2, s7
+    # --- Hidden Layer 3 (vecHid3) Update ---
+    mov a0, vecHidRes
+    cal vec3_load_z                     # a0 = relu_result_3
+    mov a2, a0                          # a2 = relu_result
+    mov a0, s0                          # a0 = delta_out
+    mov a1, s3                          # a1 = old w_out.z
     cal relu_backprop                   # a0 = delta_hid3
 
-    psh a0
-    mov a0, s3
-    cal vec3_load                       # a0=X, a1=Y, a2=Z
-    mov a4, a2                          # a4 = Z first!
-    mov a3, a1                          # a3 = Y
-    mov a2, a0                          # a2 = X
-    pop a0
     mov a1, LEARNRATE
-    mov a5, s13
-    mov a6, s14
-    mov a7, s15
+    mov a2, vecHid3                     # a2 = src old weights
+    mov a3, vecInput                    # a3 = src network inputs
+    mov a4, vecHid3                     # a4 = dst updated weights
     cal update_vec3_weights
-    mov a3, s3
-    cal vec3_store
 
     ret
 
@@ -1178,7 +1145,7 @@ state_7:
 
 bmk "NN Functions"
 
-sbmk "calc delta *"
+sbmk "calc delta"
 ## Functionality
 
 ## Params
@@ -1194,7 +1161,7 @@ calc_delta:
 
     ret
 
-sbmk "update weight *"
+sbmk "update weight"
 
 ## Functionality
 # wNeu <- wAlt - (learnrate * delta(error)) * x(input)
@@ -1232,48 +1199,81 @@ sbmk "update vec3 weights *"
 
 # Output
 update_vec3_weights:
-s
+
+    # --- save ---
+    mov t0,a0                           # save delta
+    mov t1,a2                           # save oldWeight vec3
+    mov t2,a3                           # save input x vec3
+    mov t3,a4                           # destination vec3
+
     # --- X ---
-    psh a0                      # |a0(delta)
+    # get x value
+    mov a0,t1                           # get oldWeight vec3
+    cal vec3_load_x
+    mov a2,a0                           # a2        :   oldWeight
 
-    # a0 stays delta
-    mov a1,LEARNRATE
-    # a2 allready correct
-    psh a3                      # |a3
+    mov a0,t2                           # get input x vec3
+    cal vec3_load_x
+    mov a3,a0                           # a3        :   input x
 
-    mov a3,a5
-    cal update_weight
-    mov t0,a2                   # result in a2
+    mov a0,t0                           # a0        :   backprop res / delta
+    mov a1,LEARNRATE                    # a1        :   learnrate
 
-    # Y
-    # a0,a1 stay
-    pop a2                      # |     (a3)
-    psh t0                      # |t0[x]
-    mov a3,a6                   # set param a3 for cal
-    cal update_weight
-    psh a2                      # |t0[x]-a2[y]
+    cal update_weight                   # a2        :   newWeight
+    # --- save updated weight ---
+    mov a1,a4
+    cal vec3_store_x                    # save x into new vec
 
-    # Z
-    # a0,a1 stay
-    mov a2,a4                   # load param a2 for cal
-    mov a3,a7                   # load param a3 for cal
-    cal update_weight           # a2 (z)
+    # --- Y ---
+    # get y value
+    mov a0,t1                           # get oldWeight vec3
+    cal vec3_load_y
+    mov a2,a0                           # a2        :   oldWeight
 
-    pop a1                      # |t0[x]    (a2[y])
-    pop a0                      # |     (t0[x])
+    mov a0,t2                           # get input x vec3
+    cal vec3_load_y
+    mov a3,a0                           # a3        :   input x
+
+    mov a0,t0                           # a0        :   backprop res / delta
+    mov a1,LEARNRATE                    # a1        :   learnrate
+
+    cal update_weight                   # a2        :   newWeight
+    # --- save updated weight ---
+    mov a1,a4
+    cal vec3_store_y                    # save y into new vec
+
+    # --- Z ---
+    # get z value
+    mov a0,t1                           # get oldWeight vec3
+    cal vec3_load_z
+    mov a2,a0                           # a2        :   oldWeight
+
+    mov a0,t2                           # get input x vec3
+    cal vec3_load_z
+    mov a3,a0                           # a3        :   input x
+
+    mov a0,t0                           # a0        :   backprop res / delta
+    mov a1,LEARNRATE                    # a1        :   learnrate
+
+    cal update_weight                   # a2        :   newWeight
+    # --- save updated weight ---
+    mov a1,a4
+    cal vec3_store_z                    # save z into new vec
+
+    # result in dst vec3
 
     ret
 
 bmk "NN Relu"
 
 sbmk "Relu vec3"
-    ## Functionality
+## Functionality
 
-    ## Params
-    # a0        :   source vec3 (src)
-    # a1        :   destination vec3 (dst)
+## Params
+# a0        :   source vec3 (src)
+# a1        :   destination vec3 (dst)
 
-    ## Output
+## Output
 relu_vec3:
 
     mov a3,a1                   # dst vec -> a3
@@ -1286,7 +1286,7 @@ relu_vec3:
 
     ret
 
-sbmk "relu backprop *"
+sbmk "relu backprop"
 ## Params:
 # a0 = deltaOut
 # a1 = wOut
@@ -1307,7 +1307,7 @@ relu_backprop:
     ret
 
 bmk "NN Sigmoid"
-sbmk "Sigmoid *"
+sbmk "Sigmoid"
 
 ## Functionality
 # 1/(1+e^z) = z
@@ -1322,7 +1322,7 @@ sigmoid:
     #a0
     ret
 
-sbmk "Hard Sigmoid *"
+sbmk "Hard Sigmoid"
 
 ## Functionality
 # hard-sigmoid(x): max(0.0,min(1.0, (0.2*z+0.5))
@@ -1346,7 +1346,7 @@ hard_sigmoid:
     ret
 
 
-sbmk "Hard Sigmoid backprop *"
+sbmk "Hard Sigmoid backprop"
 
 ## Functionality
 
@@ -1362,31 +1362,40 @@ hard_sigmoid_backprop:
 
     ret
 
-sbmk "Hard Sigmoid vec3 *"
+sbmk "Hard Sigmoid vec3"
 
 ## Functionality
 
 ## Params
-# a0-a2     :   input values
+# a0        :   vec3 source
+# a1        :   vec3 destination
 
 ## Output
-# a0-a2     :   output values
 
 hard_sigmoid_vec3:
 
-    psh a0              # |a0
-    psh a1              # |a0-a1
+    mov a3,a1                   # pre load destionation param for vec3_store
+    cal vec3_load               # load x,y,z -> a0-a2
 
-    mov a0,a2
-    cal hard_sigmoid    # sigmoid of a2
-    mov a2,a0
+    # --- X ---
+    fmul a0,a0,0.2              # (0.2*z)
+    fadd a0,a0,0.5              # x + 0.5
+    fmin a0,1.0,a0              # min(1.0 , x)
+    fmax a0,0.0,a0              # max(0.0 , x)
+    # --- Y ---
+    fmul a1,a1,0.2              # (0.2*z)
+    fadd a1,a1,0.5              # x + 0.5
+    fmin a1,1.0,a1              # min(1.0 , x)
+    fmax a1,0.0,a1              # max(0.0 , x)
+    # --- Z ---
+    fmul a2,a2,0.2              # (0.2*z)
+    fadd a2,a2,0.5              # x + 0.5
+    fmin a2,1.0,a2              # min(1.0 , x)
+    fmax a2,0.0,a2              # max(0.0 , x)
 
-    pop a0              # |a0   (a1)
-    cal hard_sigmoid    # sigmoid of a1
-    mov a1,a0
+    # --- store result ---
+    cal vec3_store
 
-    pop a0              # |     (a0)
-    cal hard_sigmoid    # sigmoid of a0
     ret
 
 bmk "Programm Globals"
