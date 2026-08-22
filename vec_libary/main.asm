@@ -122,18 +122,18 @@ sbmk "vec3 store 2"
 ## Params
 # a0-a2     :   values Vec A
 # a3-a5     :   values Vec B
-# a6        :   vec3 A
-# a7        :   vec3 B
+# a6        :   dest vec3 A
+# a7        :   dest vec3 B
 
 ## Output
 vec3_store_2:
 
     # --- store Vec A ---
-    cea a6,0,1                          # load vec A address
+    cea a6,0,1                          # store vec A address
     cal vec3_store
 
     # --- store Vec B ---
-    cea a7,0,1                          # load vec B address
+    cea a7,0,1                          # store vec B address
     ste f32t,vector.x,a3                # Vec B x -> A3
     ste f32t,vector.y,a4                # Vec B y -> A4
     ste f32t,vector.z,a5                # Vec B z -> A5
@@ -204,9 +204,9 @@ vec3_dot_product:
     mov a7,a1
     cal vec3_load_2
 
-    # ---  ---
+    # --- fuse multiply x*x, y*y, z*z ---
     vffma a0..a2,a0..,a3..,zr           # mutiplaying A.X * B.X -> A.X ...
-
+    # --- add results together (xx)+(yy)+(zz)
     fadd a0,a0,a1                       # X+Y -> A.X (a0)
     fadd a0,a0,a2                       # (X+Y) + Z -> A.X (a0)
 
@@ -282,6 +282,7 @@ sbmk "vec3 cross product"
 # a2    :   dest vec3
 
 ## Output
+# outputs -> dest vec3 (a2)
 
 Vec3_cross_product:
 
@@ -322,25 +323,20 @@ sbmk "vec3 create"
 # x, y or z are stored
 vec3_example: res u8t vector.vector_size
 
-sbmk "vec3 read value"
-# or use the vec3 read cea function ;)
-vec3_read_example:
+sbmk "vec3 load value"
+# or use the load vec3  function ;)
+vec3_load_example:
 
     cea a0,0,1                          # a0 = vec adress
     lde f32t,a0,vector.x                # load x into a0
 
     ret
 
-
-
-
-sbmk "vec3 write value"
+sbmk "vec3 store value"
 vec3_write_example:
     cea a0,0,1                          # a0 = vec adress
      ste f32t,vector.x,a5               # a5 = new value (vector.x/.y/.z depending on which value)
-
-
-
+    ret
 
 bmk "Vec3 draw/print"
 sbmk "vec3_draw_on_screen"
@@ -355,7 +351,7 @@ sbmk "vec3_draw_on_screen"
 
 vec3_draw_on_screen:
 
-    mov t0,a0
+    mov t0,a0                           # save a0 -> t0
 
     mov a0,a1                           # vec address in a0, for param cal
     cal vec3_load                       # get values
