@@ -1,6 +1,3 @@
-#
-#
-#
 
 bmk "Deritrives"
 
@@ -11,6 +8,569 @@ bmk "Settings"
 
 def LEARNRATE 0.1
 def PRINT_NN_IN_TERMINAL false          # values: true/falses
+bmk "Vec3 Readme"
+# ==============================================================================
+# Vec3 Math & Utility Library
+# ==============================================================================
+# Version: 1.1
+#
+# OVERVIEW:
+# A 3D single-precision float vector library
+#
+# - Struct Layout:
+#     vector.x = offset 0  (4 bytes, f32t)
+#     vector.y = offset 4  (4 bytes, f32t)
+#     vector.z = offset 8  (4 bytes, f32t)
+#     Total Size = 12 bytes
+#
+# - Memory Primitives:
+#     - vec3_load  : Reads RAM (a0) -> Registers (a0=x, a1=y, a2=z)
+#     - vec3_store : Writes Registers (a0..a2) -> RAM (a3)
+#     - vec3_copy  : Copies RAM (a0) -> RAM (a1)
+#
+# - Destination Pointer Standard:
+#       most functions provide a destination pointer (dst) as input
+#       allowing to direcly write the function to memory
+#       also allowing in-place operations (src == dst)
+#
+# - Temporary vector:
+#       a pre_allocated global temporary `vec3_tmp` buffer, for temporarily storing
+#       results when allocating it somewhere else isnt available
+# ==============================================================================
+
+bmk "Vec3 Basics"
+
+sbmk "vec3 struct"
+
+vector:
+    ._x: emb f32t 0.0
+    ._y: emb f32t 0.0
+    ._z: emb f32t 0.0
+
+    def .x (._x - vector)               # offset 0
+    def .y (._y - vector)               # offset 4
+    def .z (._z - vector)               # offset 8
+    def .vector_size ( $ - vector)      # size 12
+
+sbmk "vec3 load"
+## Functionality: Loads x, y, z from memory into registers a0..a2
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# a0    : component x
+# a1    : component y
+# a2    : component z
+vec3_load:
+    cea a0, 0, 1                        # Load vec address into CEA
+    lde f32t, a0, vector.x              # a0 <- x
+    lde f32t, a1, vector.y              # a1 <- y
+    lde f32t, a2, vector.z              # a2 <- z
+    ret
+
+sbmk "vec3 store"
+## Functionality: Stores registers a0..a2 into memory address a3
+
+## Params:
+# a0..a2: values x, y, z
+# a3    : destination vec3 address
+
+## Output:
+# none
+vec3_store:
+    cea a3, 0, 1                        # Load destination address into CEA
+    ste f32t, vector.x, a0              # Store x
+    ste f32t, vector.y, a1              # Store y
+    ste f32t, vector.z, a2              # Store z
+    ret
+
+sbmk "vec3 copy"
+## Functionality: Copies 12 bytes from source address to destination address
+
+## Params:
+# a0    : source vec3 address
+# a1    : destination vec3 address
+
+## Output:
+# none
+vec3_copy:
+    mov a3, a1                          # Destination pointer -> a3
+    cal vec3_load                       # Load src (a0) into a0..a2
+    cal vec3_store                      # Store a0..a2 into dst (a3)
+    ret
+
+bmk "Vec3 single access"
+
+sbmk "vec3 load x"
+## Functionality:
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# a0    : x
+
+vec3_load_x:
+    cea a0, 0, 1                        # Load vec address into CEA
+    lde f32t, a0, vector.x              # a0 <- x
+    ret
+
+sbmk "vec3 load y"
+## Functionality:
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# a0    : y
+
+vec3_load_y:
+    cea a0, 0, 1                        # Load vec address into CEA
+    lde f32t, a0, vector.y              # a0 <- y
+    ret
+
+sbmk "vec3 load z"
+## Functionality:
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# a0    : z
+
+vec3_load_z:
+    cea a0, 0, 1                        # Load vec address into CEA
+    lde f32t, a0, vector.z              # a0 <- z
+    ret
+
+sbmk "vec3 store x"
+## Functionality: Stores registers a0..a2 into memory address a3
+
+## Params:
+# a0    :   value x
+# a1    :   destination vec3 add (dst)
+
+## Output:
+# none
+vec3_store_x:
+    cea a1, 0, 1                        # Load destination address into CEA
+    ste f32t, vector.x, a0              # Store x
+    ret
+
+sbmk "vec3 store y"
+## Functionality: Stores registers a0..a2 into memory address a3
+
+## Params:
+# a0    :   value y
+# a1    :   destination vec3 add (dst)
+
+## Output:
+# none
+vec3_store_y:
+    cea a1, 0, 1                        # Load destination address into CEA
+    ste f32t, vector.x, a0              # Store y
+    ret
+
+sbmk "vec3 store z"
+## Functionality: Stores registers a0..a2 into memory address a3
+
+## Params:
+# a0    :   value z
+# a1    :   destination vec3 add (dst)
+
+## Output:
+# none
+vec3_store_z:
+    cea a1, 0, 1                        # Load destination address into CEA
+    ste f32t, vector.x, a0              # Store z
+    ret
+
+
+
+bmk "Vec3 Advanced"
+
+sbmk "vec3 load 2"
+## Functionality: Loads two vectors into registers simultaneously
+## Params:
+# a0    : source vec3 A address
+# a1    : source vec3 B address
+## Output:
+# a0..a2: Vec A (x, y, z)
+# a3..a5: Vec B (x, y, z)
+vec3_load_2:
+    psh a0                              # | a0(srcA)
+
+    # --- Load Vec B ---
+    mov a0, a1                          # a0 = srcB
+    cea a0, 0, 1
+    lde f32t, a3, vector.x              # a3 <- B.x
+    lde f32t, a4, vector.y              # a4 <- B.y
+    lde f32t, a5, vector.z              # a5 <- B.z
+
+    # --- Load Vec A ---
+    pop a0                              # | [a0(srcA)]
+    cea a0, 0, 1
+    cal vec3_load                       # a0..a2 <- A(x, y, z)
+    ret
+
+sbmk "vec3 store 2"
+## Functionality: Stores two vectors to their respective destination addresses
+
+## Params:
+# a0..a2: Vec A (x, y, z)
+# a3..a5: Vec B (x, y, z)
+# a6    : destination vec3 A address
+# a7    : destination vec3 B address
+
+## Output:
+# none
+vec3_store_2:
+    # --- Store Vec A ---
+    cea a6, 0, 1
+    cal vec3_store
+
+    # --- Store Vec B ---
+    cea a7, 0, 1
+    ste f32t, vector.x, a3              # Store B.x
+    ste f32t, vector.y, a4              # Store B.y
+    ste f32t, vector.z, a5              # Store B.z
+    ret
+
+sbmk "vec3 swizzle"
+## Functionality: Re-orders / broadcasts vector components based on a bitmask
+## Bitmask Encoding (2 bits per component):
+# 00 = 0.0 (zero)
+# 01 = x
+# 10 = y
+# 11 = z
+
+## Params:
+# a0    : source vec3 address
+# a1    : 6-bit mask (e.g. 0b11_10_01 for z, y, x)
+# a2    : destination vec3 address
+
+## Output:
+# none
+vec3_swizzle:
+    # --- Preserve parameters ---
+    mov a3, a1                          # Mask (a1) -> a3
+    psh a2                              # | a2(dst)
+    cal vec3_load                       # a0..a2 = x, y, z
+
+    # --- Swizzle X (Bits 1..0) ---
+    cal swizzle_single                  # Selected component in a4
+    psh a4                              # | a2(dst) - a4(new_x)
+
+    # --- Swizzle Y (Bits 3..2) ---
+    cal swizzle_single                  # Selected component in a4
+    psh a4                              # | a2(dst) - a4(new_x) - a4(new_y)
+
+    # --- Swizzle Z (Bits 5..4) ---
+    cal swizzle_single                  # Selected component in a4
+    mov a2, a4                          # a2 = new Z
+
+    # --- Restore X and Y into standard registers ---
+    pop a1                              # a1 = new Y
+    pop a0                              # a0 = new X
+
+    # --- Store to destination ---
+    pop a3                              # a3 = dst address
+    cal vec3_store
+    ret
+
+bmk "Vec3 Calculations"
+
+sbmk "vec3 dot product"
+## Functionality: Calculates dot product of two vectors: (A.x*B.x + A.y*B.y + A.z*B.z)
+
+## Params:
+# a0    : source vec3 A address
+# a1    : source vec3 B address
+
+## Output:
+# a0    : dot product scalar (float)
+vec3_dot_product:
+    # --- Load both vectors ---
+    cal vec3_load_2                     # a0..a2 = A, a3..a5 = B
+
+    # --- Vectorized FMA: A.x*B.x, A.y*B.y, A.z*B.z ---
+    vffma a0..a2, a0.., a3.., zr
+
+    # --- Horizontal Sum ---
+    fadd a0, a0, a1                     # a0 = (A.x*B.x) + (A.y*B.y)
+    fadd a0, a0, a2                     # a0 = total dot product
+    ret
+
+sbmk "vec3 magnitude"
+## Functionality: Calculates vector Euclidean length |v| = sqrt(x^2 + y^2 + z^2)
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# a0    : magnitude scalar (float)
+Vec3_magnitute:
+    # --- Load source vector ---
+    cal vec3_load                       # a0..a2 = x, y, z
+
+    # --- Sum of squares ---
+    fmul t0, a0, a0                     # t0 = x^2
+    ffma t0, a1, a1, t0                 # t0 = y^2 + x^2
+    ffma a0, a2, a2, t0                 # a0 = z^2 + (x^2 + y^2)
+    fsqrt a0, a0                        # a0 = sqrt(|v|^2)
+    ret
+
+sbmk "vec3 normalize"
+## Functionality: Normalizes vector to unit length (^v = v / |v|)
+
+## Params:
+# a0    : source vec3 address
+# a1    : destination vec3 address
+
+## Output:
+# none
+Vec3_normalize:
+    # --- Save parameters ---
+    psh a1                              # | a1(dst)
+    psh a0                              # | a1(dst) - a0(src)
+
+    # --- Calculate magnitude ---
+    cal Vec3_magnitute                  # a0 = |v|
+    mov t0, a0                          # t0 = magnitude divisor
+
+    # --- Reload source vector ---
+    pop a0                              # | a1(dst) [a0(src)]
+    cal vec3_load                       # a0..a2 = x, y, z
+
+    # --- Scale components ---
+    fdiv a0, a0, t0                     # x' = x / |v|
+    fdiv a1, a1, t0                     # y' = y / |v|
+    fdiv a2, a2, t0                     # z' = z / |v|
+
+    # --- Store unit vector ---
+    pop a3                              # | [a1(dst)]
+    cal vec3_store
+    ret
+
+sbmk "vec3 cross product"
+## Functionality: Calculates Cross Product C = A x B
+# C.x = (A.y * B.z) - (B.y * A.z)
+# C.y = (A.z * B.x) - (B.z * A.x)
+# C.z = (A.x * B.y) - (B.x * A.y)
+
+## Params:
+# a0    : source vec3 A address
+# a1    : source vec3 B address
+# a2    : destination vec3 address
+
+## Output:
+# none
+Vec3_cross_product:
+    psh a2                              # | a2(dst)
+
+    # --- Load Vec A and Vec B ---
+    cal vec3_load_2                     # a0..a2 = Vec A, a3..a5 = Vec B
+
+    # --- Backup Vec A in temp registers ---
+    mov t3, a0                          # t3 = A.x
+    mov t4, a1                          # t4 = A.y
+    mov t5, a2                          # t5 = A.z
+
+    # --- Compute C.x ---
+    fmul t0, t4, a5                     # t0 = A.y * B.z
+    fmul t1, a4, t5                     # t1 = B.y * A.z
+    fsub a0, t0, t1                     # a0 = C.x
+
+    # --- Compute C.y ---
+    fmul t0, t5, a3                     # t0 = A.z * B.x
+    fmul t1, a5, t3                     # t1 = B.z * A.x
+    fsub a1, t0, t1                     # a1 = C.y
+
+    # --- Compute C.z ---
+    fmul t0, t3, a4                     # t0 = A.x * B.y
+    fmul t1, a3, t4                     # t1 = B.x * A.y
+    fsub a2, t0, t1                     # a2 = C.z
+
+    # --- Store to destination ---
+    pop a3                              # a3 = dst
+    cal vec3_store
+    ret
+
+bmk "Vec3 Examples"
+
+sbmk "vec3 create"
+# Allocates a 12-byte block in storage for a vec3 instance
+vec3_example: res u8t vector.vector_size
+
+sbmk "vec3 load value"
+# Example: Loading a single component directly
+vec3_load_example:
+    cea a0, 0, 1                        # a0 = vector address
+    lde f32t, a0, vector.x              # Load x into a0
+    ret
+
+sbmk "vec3 store value"
+# Example: Storing a single component directly
+vec3_store_example:
+    cea a0, 0, 1                        # a0 = vector address
+    ste f32t, vector.x, a5              # Store a5 into vector.x
+    ret
+
+bmk "Vec3 Draw/Print"
+
+sbmk "vec3 draw on screen"
+## Functionality: Draws 3 component bar representations on LCD screen
+
+## Params:
+# a0    : start X coordinate
+# a1    : source vec3 address
+
+## Output:
+# none
+vec3_draw_on_screen:
+    mov t0, a0                          # Save start X pos -> t0
+    mov a0, a1                          # a0 = vec address
+    cal vec3_load                       # Load a0..a2
+
+    psh a2                              # | a2(z)
+    psh a1                              # | a2(z) - a1(y)
+
+    # Draw X
+    mov a1, a0                          # a1 = float val
+    mov a0, t0                          # a0 = screen X
+    cal draw_float_on_screen
+
+    # Draw Y
+    add t0, t0, 15                      # Next column
+    mov a0, t0
+    pop a1                              # Restore Y
+    cal draw_float_on_screen
+
+    # Draw Z
+    add t0, t0, 15                      # Next column
+    mov a0, t0
+    pop a1                              # Restore Z
+    cal draw_float_on_screen
+    ret
+
+sbmk "vec3 print"
+
+print_x: emb string "X: "
+print_y: emb string "Y: "
+print_z: emb string "Z: "
+
+## Functionality: Prints formatted vector components to the terminal
+
+## Params:
+# a0    : source vec3 address
+
+## Output:
+# none
+vec3_print:
+    cal vec3_load                       # a0..a2 = x, y, z
+    psh a2                              # | a2(z)
+    psh a1                              # | a2(z) - a1(y)
+    psh a0                              # | a2(z) - a1(y) - a0(x)
+
+    # --- Print X ---
+    mov a0, print_x
+    syscall SYS_PRINT_STRING
+    pop a0                              # Restore X
+    syscall SYS_PRINT_LINE_FLOAT
+
+    # --- Print Y ---
+    mov a0, print_y
+    syscall SYS_PRINT_STRING
+    pop a0                              # Restore Y
+    syscall SYS_PRINT_LINE_FLOAT
+
+    # --- Print Z ---
+    mov a0, print_z
+    syscall SYS_PRINT_STRING
+    pop a0                              # Restore Z
+    syscall SYS_PRINT_LINE_FLOAT
+    ret
+
+bmk "Vec3 Helpers"
+
+sbmk "vec3 tmp"
+# Global scratchpad for temporary vector operations
+vec3_tmp: res u8t vector.vector_size
+
+sbmk "swizzle single"
+## Helper: Extracts lowest 2 bits from a3, loads value into a4, shifts mask right
+
+## Params:
+# a0..a2: original x, y, z
+# a3    : bitmask
+
+## Output:
+# a0..a2: original x, y, z (preserved)
+# a3    : bitmask (shifted right by 2)
+# a4    : selected float value (0.0, x, y, or z)
+swizzle_single:
+    and a4, a3, 3                       # a4 = lowest 2 bits (0b11 = 3)
+    sar a3, a3, 2                       # Shift mask for next component
+
+    cmp eq, a4, 0
+    jtr .swizzle_00
+
+    cmp eq, a4, 1
+    jtr .swizzle_01
+
+    cmp eq, a4, 2
+    jtr .swizzle_10
+
+    # 0b11 -> Z component
+    mov a4, a2
+    ret
+
+.swizzle_00:
+    mov a4, 0.0                         # 0b00 -> 0.0
+    ret
+
+.swizzle_01:
+    mov a4, a0                          # 0b01 -> X
+    ret
+
+.swizzle_10:
+    mov a4, a1                          # 0b10 -> Y
+    ret
+
+sbmk "draw float on screen"
+## Helper: Renders a single float as a bar on screen
+
+## Params:
+# a0    : start X coordinate
+# a1    : float value to draw
+draw_float_on_screen:
+    mov a4, 80                          # Default luma (negative/dim)
+
+    cmp flt, a1, 0.0
+    jtr .draw_calc_height
+
+    mov a4, 255                         # Positive luma (bright)
+
+.draw_calc_height:
+    fabs a3, a1                         # Absolute value for height
+    fmul a3, a3, 10.0                   # Scale factor 10x
+    fcti a3, a3                         # Float -> Int height
+
+    cmp eq, a3, 0                       # Clamp minimum height to 1 pixel
+    jfs .draw_render
+    mov a3, 1
+
+.draw_render:
+    mov a1, 10                          # Screen Y pos
+    mov a2, 10                          # Bar width (size X)
+
+    # Args: a0=pos_x, a1=pos_y, a2=size_x, a3=size_y, a4=luma
+    syscall SYS_DRAW_RECT
+    ret
+
+bmk "Vec3 End"
+
 
 bmk "Helper functions"
 
@@ -30,33 +590,6 @@ sbmk "draw_float_on_screen"
 # a1    :   to draw float
 
 ## Output
-draw_float_on_screen:
-
-    mov a4, 80                          # set luma
-
-    cmp flt,a1,0.0                      # if float < 0.0
-    jtr .draw_float
-
-    mov a4,255                          # if false (pos) set luma to 255
-    .draw_float:
-
-    fabs a3,a1                          # calc y height (depth)
-
-    fmul a3,a3,10.0                     # mul by 10
-    fcti a3,a3                          # convert to int
-
-    cmp eq,a3,0                         # if value = 0, draw one pixel
-    jfs .draw_not_0
-
-    mov a3,1
-    .draw_not_0:
-
-    mov a1, 10                          # set y pos
-    mov a2, 10                          # set x size
-
-    # Args: a0:pos_x, a1:pos_y, a2:size_x, a3:size_y, a4:luma
-    syscall SYS_DRAW_RECT
-    ret
 
 sbmk "Parse Single Float"
 ## Functionality
@@ -132,539 +665,62 @@ parse_single_float:
     ret
 
 
-bmk "Vec3 Basics"
-
-sbmk "vec3 struct"
-
-vector:
-    ._x: emb f32t 0.0
-    ._y: emb f32t 0.0
-    ._z: emb f32t 0.0
-
-    def .x (._x - vector)               # offset 0
-    def .y (._y - vector)               # offset 4
-    def .z (._z - vector)               # offset 8
-    def .vector_size ( $ - vector)      # size 12
-
-
-sbmk "vec3 read cea (storage)"
-## Functionality
-# loads the values x,y,z from a given vec a0 into a0-a2
-
-## Params
-# a0    :   vec3 (adress) to load
-
-## Output
-# a0-a2 :   values x,y,z
-vec3_read:
-
-    cea a0,0,1                          # load vec adress in a0
-    lde f32t,a0,vector.x                # load vec.values into a0-a2
-    lde f32t,a1,vector.y
-    lde f32t,a2,vector.z
-
-    ret
-
-
-sbmk "vec3 writes cea (storage)"
-## Functionality
-# writes vec into cae
-
-## Params
-# a0-a2     :   values Vec A
-# a3        :   vec3 A
-
-## Output
-
-vec3_write:
-
-cea a3,0,1                              # load vec3 address in a3
-    ste f32t,vector.x,a0                # write a0-a2 into vec
-    ste f32t,vector.y,a1
-    ste f32t,vector.z,a2
-
-    ret
-
-bmk "vec3 Advanced"
-
-sbmk "vec 3 read cea 2vec"
-## Functionality
-# loads the values x,y,z from a given vec a0 into a0-a2
-
-## Params
-# a0    :   vec3 (adress) to load
-# a1    :   vec3 (adress) to load
-
-## Output
-# a0-a2 :   values x,y,z
-# a3-a5 :   values x,y,z
-vec3_read_2:
-
-    psh a0                              # |a0
-
-    mov a0,a1                           # move to load adress -> a0
-    cea a0,0,1                          # load Vec B
-    lde f32t,a3,vector.x                # load vec B values -> a3-a5
-    lde f32t,a4,vector.y
-    lde f32t,a5,vector.z
-
-    pop a0                              # |     (a0)
-    cea a0,0,1                          # load Vec A
-    lde f32t,a0,vector.x                # load Vec A values -> a0-a2
-    lde f32t,a1,vector.y
-    lde f32t,a2,vector.z
-
-    ret
-
-sbmk "vec3 writes cea 2"
-## Functionality
-# writes vec into cae
-
-## Params
-# a0-a2     :   values Vec A
-# a3-a5     :   values Vec B
-# a6        :   vec3 A
-# a7        :   vec3 B
-
-## Output
-vec3_write_2:
-
-    cea a6,0,1                          # read Vec A
-    ste f32t,vector.x,a0                # vec A x -> a0
-    ste f32t,vector.y,a1                # Vec A y -> a1
-    ste f32t,vector.z,a2                # Vec A z -> a2
-
-    cea a7,0,1                          # read Vec B
-    ste f32t,vector.x,a3                # Vec B x -> A3
-    ste f32t,vector.y,a4                # Vec B y -> A4
-    ste f32t,vector.z,a5                # Vec B z -> A5
-
-    ret
-
-bmk "Vec3 Calculations"
-sbmk "vec3 dot product"
-## Functionality
-# calculates the dot product of 2 vectors
-
-## Params
-# a0-a2 : Vec A
-# a3-a5 : Vec B
-
-## Output
-# a0    : single value representing dot product of both vectors
-
-vec3_dot_product:
-    vffma a0..a2,a0..,a3..,zr           # mutiplaying A.X * B.X -> A.X ...
-
-    fadd a0,a0,a1                       # X+Y -> A.X (a0)
-    fadd a0,a0,a2                       # (X+Y) + Z -> A.X (a0)
-
-    ret
-
-sbmk "vec3 magnitute"
-#(v-length)
-
-## Functionality
-# sqrt(x^2 + y^2 + z^2) = sqrt(v*v)
-
-## Params
-# a0-a2 :   Vec
-
-## Output
-# a0    :   magnitute / lenght of vector
-
-Vec3_magnitute:
-    fmul t0, a0, a0                     # X*X
-    ffma t0,a1,a1,t0                    # Y*Y + (x^2)
-    ffma a0,a2,a2,t0                    # Z*Z + (x^2 + y^2)
-    fsqrt a0, a0                        # sqrt()
-    ret
-
-sbmk "vec3 normalize"
-
-## Functionality
-# v / |v| = ^v
-
-## Params
-# a0-a2 :   Vec A
-
-## Output
-# a0-a2    :   returns normalized Vec A
-Vec3_normalize:
-
-    # Save Vec A
-    psh a0                              # |a0
-    psh a1                              # |a0-a1
-    psh a2                              # |a0-a1-a2
-
-    # calc Vec A magnitude
-    cal Vec3_magnitute
-    mov t0,a0                           # magnitute result -> t0
-
-    # restore Vec A
-    pop a2                              # |a0-a1    (a2)
-    pop a1                              # |a0       (a1)
-    pop a0                              # |         (a0)
-
-    # normalize each value
-    fdiv a0, a0, t0                     #add = div / sor    x/x^
-    fdiv a1, a1, t0                     #                   y/y^
-    fdiv a2, a2, t0                     #                   z/z^
-
-    ret
-
-sbmk "vec3 cross product"
-## Functionality
-# ( A.Y * B.Z) - (B.Y * A.Z) -> C.X
-# ( A.Z * B.X) - (B.Z * A.X) -> C.Y
-# ( A.X * B.Y) - (B.X * A.Y) -> C.Z
-
-## Params
-# a0-a2 :   Vec A
-# a3-a5 :   Vec B
-
-## Output
-# a0-a2 :   Vec C (A x B)
-
-Vec3_cross_product:
-
-    mov t3,a0                           # a0 -> t3 (x)
-    mov t4,a1                           # a1 -> t4 (y)
-    mov t5,a2                           # a2 -> t5 (z)
-
-    # X
-    # ( A.Y * B.Z) - (B.Y * A.Z) -> C.X
-    fmul t0,t4,a5                       # ( A.Y * B.Z)
-    fmul t1,a4,t5                       # (B.Y * A.Z)
-
-    fsub a0,t0,t1                       # X = () - ()
-
-    # Y
-    # ( A.Z * B.X) - (B.Z * A.X) -> C.Y
-    fmul t0,t5,a3                       # ( A.Z * B.X)
-    fmul t1,a5,t3                       # (B.Z * A.X)
-
-    fsub a1,t0,t1                       # Y = () - ()
-
-    # Z
-    # ( A.X * B.Y) - (B.X * A.Y) -> C.Z
-    fmul t0,t3,a4                       # ( A.X * B.Y)
-    fmul t1,a3,t4                       # (B.X * A.Y)
-
-    fsub a2,t0,t1                       # Z = () - ()
-
-    ret
-
-bmk "Vec3 Extra / Help"
-
-sbmk "vec3 create example"
-# vec-name: res u8t vector.vector_size (allowcates vector size storage for vec)
-# vec.0 = vec(address, for example 100) + x (0) = 100
-# for y and z its then vec(100) + y (4) = 104.. leading to the correct address where
-# x, y or z are stored
-vec3_example: res u8t vector.vector_size
-
-sbmk "vec3 read value exmaple"
-# or use the vec3 read cea function ;)
-vec3_read_example:
-
-    cea a0,0,1                          # a0 = vec adress
-    lde f32t,a0,vector.x                # load x into a0
-
-    ret
-
-sbmk "vec3 swizzle"
-## Functionality:
-# Re-positions vector
-# Encoding per component (2 bits):
-# 00 = 0.0 (zero)
-# 01 = x
-# 10 = y
-# 11 = z
-
-## Params:
-# a0    : pointer to vec3
-# a1    : binary mask (e.g. 0b11_10_01 for z, y, x)
-
-## Output:
-# a0    : new x
-# a1    : new y
-# a2    : new z
-vec3_swizzle:
-    mov a3, a1                          # Save mask in a3
-    cal vec3_read                       # a0 (ptr) -> loads a0=x, a1=y, a2=z
-
-    # --- New X (Bits 1..0) ---
-    cal swizzle_single                  # Result in a4
-    psh a4                              # Push new X to stack
-
-    # --- New Y (Bits 3..2) ---
-    cal swizzle_single                  # Result in a4
-    psh a4                              # Push new Y to stack
-
-    # --- New Z (Bits 5..4) ---
-    cal swizzle_single                  # Result in a4
-    mov a2, a4                          # a2 = new Z
-
-    # --- Restore X and Y in correct registers ---
-    pop a1                              # pop into a1 = new Y
-    pop a0                              # pop into a0 = new X
-
-    ret
-
-sbmk "swizzle single"
-## Helper: Extracts lowest 2 bits from a3, sets a4, and shifts a3 right by 2
-## Params:
-# a0    : original x
-# a1    : original y
-# a2    : original z
-# a3    : bitmask (shifted by 2 on return)
-## Output:
-# a4    : selected value (0.0, x, y, or z)
-swizzle_single:
-    and a4, a3, 3                       # get 2 lowest bits 0b00_00_[11]
-    sar a3, a3, 2                       # >> mask for the next component
-
-    cmp eq, a4, 0
-    jtr .swizzle_00
-
-    cmp eq, a4, 1
-    jtr .swizzle_01
-
-    cmp eq, a4, 2
-    jtr .swizzle_10
-
-    # else: for 3 (0b11)
-    mov a4, a2                          # 11 -> z
-    ret
-
-.swizzle_00:
-    mov a4, 0.0                         # 00 -> 0.0
-    ret
-
-.swizzle_01:
-    mov a4, a0                          # 01 -> x
-    ret
-
-.swizzle_10:
-    mov a4, a1                          # 10 -> y
-    ret
-
-sbmk "vec3 write value example"
-vec3_write_example:
-    cea a0,0,1                          # a0 = vec adress
-     ste f32t,vector.x,a5               # a5 = new value (vector.x/.y/.z depending on which value)
-
-
-sbmk "vec3_draw_on_screen"
-## Functionality
-# draws a vec3 on the (lcd) screen, starting from x, and y is the "value" of the float
-
-## Params
-# a0    :   start x coordinate
-# a1    :   to draw vector (address)
-
-## Output
-
-vec3_draw_on_screen:
-
-    mov t0,a0
-
-    mov a0,a1                           # vec address in a0, for param cal
-    cal vec3_read                       # get values
-    psh a2                              # |a2
-    psh a1                              # |a2-a1
-
-
-    mov a1,a0
-    mov a0,t0
-    cal draw_float_on_screen
-
-    add t0,t0,15
-    mov a0,t0
-    pop a1                              # |a2-  (a1)
-    cal draw_float_on_screen
-
-     add t0,t0,15
-    mov a0,t0
-    pop a1                              # |     (a2)
-    cal draw_float_on_screen
-    ret
-
-
-
-sbmk "vec3 print"
-
-print_x: emb string "X: "
-print_y: emb string "Y: "
-print_z: emb string "Z: "
-
-## Functionality
-
-## Params
-# a0    :     vec3
-
-## Output
-
-vec3_print:
-
-    psh a0
-
-    mov a0,print_x
-    syscall SYS_PRINT_STRING
-
-    pop a0
-    cal vec3_read
-
-    syscall SYS_PRINT_LINE_FLOAT
-
-    mov a0,print_y
-    syscall SYS_PRINT_STRING
-    mov a0,a1
-    syscall SYS_PRINT_LINE_FLOAT
-
-    mov a0,print_z
-    syscall SYS_PRINT_STRING
-    mov a0,a2
-    syscall SYS_PRINT_LINE_FLOAT
-    ret
-
-
-sbmk "Vec3 x Matrix"
-sbmk "Matrix x Matrix"
-
-
-bmk "Matrix"
-
-sbmk "create 1 * 8 matrix"
-
-def MAT1X8_ROWS 8
-def MAT1X8_SIZE (MAT1X8_ROWS * 4)   # 8 * 4 = 28 Bytes
-
-mat1x8_get_row:
-    # ea = a0 + (a1 * 12) -> jumps to coord
-    cea a0, a1, vector.vector_size
-    lde f32t,a0,0
-    ret
-
-mat1x8_set_row:
-    cea a0, a1, 0
-    ste f32t, 0, a0
-    ret
-
-sbmk "Mat 8x3"
-
-def MAT8X3_ROWS 8
-def MAT8X3_SIZE (MAT8X3_ROWS * vector.vector_size)   # 8 * 12 = 96 Bytes
-
-# ------------------------------------------------------------------------------
-# Liest eine Zeile (3 Floats) aus einer Matrix
-# Input:
-#   a0 = Basisadresse der Matrix (z. B. my_matrix)
-#   a1 = Zeilenindex (0 bis 7)
-# Output:
-#   a0..a2 = Werte [x, y, z] dieser Zeile
-# ------------------------------------------------------------------------------
-mat8x3_get_row:
-    # ea = a0 + (a1 * 12) -> springt exakt zur gewünschten Zeile
-    cea a0, a1, vector.vector_size
-
-    lde f32t, t0, vector.x
-    lde f32t, a1, vector.y
-    lde f32t, a2, vector.z
-    mov a0, t0
-    ret
-
-# ------------------------------------------------------------------------------
-# Schreibt eine Zeile (3 Floats) in eine Matrix
-# Input:
-#   a0..a2 = Werte [x, y, z]
-#   a3     = Basisadresse der Matrix
-#   a4     = Zeilenindex (0 bis 7)
-# ------------------------------------------------------------------------------
-mat8x3_set_row:
-    cea a3, a4, vector.vector_size
-
-    ste f32t, vector.x, a0
-    ste f32t, vector.y, a1
-    ste f32t, vector.z, a2
-    ret
-
 bmk "NN Basics"
 
 msg_pred: emb string "Prediction:"
 
 sbmk "predict_nn"
 ## Functionality
-# uses s0-s7
 
 ## Params
-# s0 input vec
-# s1 hid layer vec 1/3
-# s2 hid layer vec 2/3
-# s3 hid layer vec 3/3
-# s4 output layer
-# s5-s7 hidden layer result (after relu)
 
 ## Output
 # a0 result of nn
-#
-# s0 input vec
-# s1 hid layer vec 1/3
-# s2 hid layer vec 2/3
-# s3 hid layer vec 3/3
-# s4 output layer
-# s5-s7 hidden layer result (after relu)
 predict_nn:
 
-    mov s0,vecInput   # input vec
-    mov s1,vecHid1   # hidden layer 1 vec 1/3
-    mov s2,vecHid2   # hidden layer 1 vec 2/3
-    mov s3,vecHid3   # hidden layer 1 vec 3/3
-    mov s4,vecOut   # output layer
-
     # calc
-    # input layer * hidden layer1
+    # --- input layer * hidden layer (1/3) ---
 
-    mov a0,s0                           # vec3 A
-    mov a1,s1                           # vec3 B
+    mov a0,vecInput                     # a0    : source vec3 A address
+    mov a1,vecHid1                      # a1    : source vec3 B address
 
-    # input * hidden layer
-    cal vec3_read_2
-    cal vec3_dot_product                # result in a0  (1/3)
-    mov s5,a0
+    cal vec3_dot_product                # result -> a0
+    mov s0,a0                           # save result a0 -> s0
 
-    mov a0,s0
-    mov a1,s2                           # (2/3)
-    cal vec3_read_2
+    # --- input layer * hidden layer (2/3) ---
+    mov a0,vecInput                     # a0    : source vec3 A address
+    mov a1,vecHid2                      # a1    : source vec3 B address
+
     cal vec3_dot_product
-    mov s6,a0
+    mov s1,a0                           # save result a0 -> s1
 
-    mov a0,s0
-    mov a1,s3                           # (3/3)
-    cal vec3_read_2
+    # --- input layer * hidden layer (3/3) ---
+    mov a0,vecInput                     # a0    : source vec3 A address
+    mov a1,vecHid3                      # a1    : source vec3 B address
+
     cal vec3_dot_product
-    mov s7,a0
+    mov s2,a0                           # save result a0 -> s2
 
-    # Relu for each value s5 - s7
-    mov a0,s5
-    mov a1,s6
-    mov a2,s7
-    cal relu_vec3
-    mov s5,a0
-    mov s6,a1
-    mov s7,a2
+    # --- RELU function ---
+    # save results (s0-s2) in vecHidRes
+    mov a0,s0
+    mov a1,s1
+    mov a2,s2
 
+    mov a3,vecHidRes                    # save hidden layer result
+    cal vec3_store
 
-    # hidden * output                   # start preparing for dot product
-    mov a0,s4                           # add vec hidden -> a0
-    cal vec3_read                       # vec B (hidden layer) -> a0-a2
+    mov a0,vecHidRes                    # a0        :   source vec3 (src)
+    mov a1,vecHidRes                    # a1        :   destination vec3 (dst)
 
-    mov a3,s5                           # vec A.X -> a3 (output layer)..
-    mov a4,s6                           # vec A.Y -> s4
-    mov a5,s7                           # vec A.Z -> s5
+    cal relu_vec3                       # calc relu -> vecHidRes
 
-    cal vec3_dot_product                # calc dot product -> a0
+    # --- hidden * output ---
+    # result hidden in vecHidRes
+    mov a0,vecHidRes                    # a0    : source vec3 A address
+    mov a1,vecOut                       # a1    : source vec3 B address
+
+    cal vec3_dot_product                # a0    : dot product scalar (float)
     cal hard_sigmoid                    # a0 -> sigmoid (0-1) -> a0
 
     psh a0                              # |a0
@@ -673,16 +729,11 @@ predict_nn:
     syscall SYS_PRINT_LINE_STRING       # print
 
     pop a0                              # |     (a0)
-    psh a0                              # |a0
     syscall SYS_PRINT_LINE_FLOAT        # print result
-    pop a0                              # |     (a0)
 
     ret
 
-
-    ret
-
-sbmk "Back Propagation"
+sbmk "Back Propagation *"
 
 ## Params
 # a0 = result (predicted value y_hat)
@@ -696,7 +747,7 @@ packprop_nn:
 
     # 2. Save old output weights (needed for hidden layer backpropagation)
     mov a0, s4
-    cal vec3_read                       # a0..a2 = old w_out
+    cal vec3_load                       # a0..a2 = old w_out
     mov s10, a0                         # old w_out.x
     mov s11, a1                         # old w_out.y
     mov s12, a2                         # old w_out.z
@@ -712,11 +763,11 @@ packprop_nn:
     mov a7, s7                          # input z (ReLU intermediate value 3)
     cal update_vec3_weights             # returns new weights in a0..a2
     mov a3, s4                          # Destination address to a3
-    cal vec3_write
+    cal vec3_store
 
     # 4. Load original inputs from vecInput (remain identical for all 3 hidden updates)
     mov a0, s0
-    cal vec3_read
+    cal vec3_load
     mov s13, a0                         # s13 = in.x
     mov s14, a1                         # s14 = in.y
     mov s15, a2                         # s15 = in.z
@@ -729,7 +780,7 @@ packprop_nn:
 
     psh a0                              # Briefly push delta_hid1 onto the stack
     mov a0, s1
-    cal vec3_read                       # a0=X, a1=Y, a2=Z
+    cal vec3_load                       # a0=X, a1=Y, a2=Z
     mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
@@ -740,7 +791,7 @@ packprop_nn:
     mov a7, s15                         # in.z
     cal update_vec3_weights
     mov a3, s1                          # Destination address to a3
-    cal vec3_write
+    cal vec3_store
 
     # --- Hidden Layer 2/3 (vecHid2) ---
     mov a0, s9
@@ -750,7 +801,7 @@ packprop_nn:
 
     psh a0
     mov a0, s2
-    cal vec3_read                       # a0=X, a1=Y, a2=Z
+    cal vec3_load                       # a0=X, a1=Y, a2=Z
     mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
@@ -761,7 +812,7 @@ packprop_nn:
     mov a7, s15
     cal update_vec3_weights
     mov a3, s2
-    cal vec3_write
+    cal vec3_store
 
     # --- Hidden Layer 3/3 (vecHid3) ---
     mov a0, s9
@@ -771,7 +822,7 @@ packprop_nn:
 
     psh a0
     mov a0, s3
-    cal vec3_read                       # a0=X, a1=Y, a2=Z
+    cal vec3_load                       # a0=X, a1=Y, a2=Z
     mov a4, a2                          # a4 = Z first!
     mov a3, a1                          # a3 = Y
     mov a2, a0                          # a2 = X
@@ -782,7 +833,7 @@ packprop_nn:
     mov a7, s15
     cal update_vec3_weights
     mov a3, s3
-    cal vec3_write
+    cal vec3_store
 
     ret
 
@@ -795,12 +846,6 @@ print_res: emb string "actual result: "
 # predicts, backprops and prints nn
 
 ## Params
-# s0 input vec
-# s1 hid layer vec 1/3
-# s2 hid layer vec 2/3
-# s3 hid layer vec 3/3
-# s4 output layer
-# s5-s7 hidden layer result (after relu)
 
 train_nn:
 
@@ -1133,7 +1178,7 @@ state_7:
 
 bmk "NN Functions"
 
-sbmk "calc delta"
+sbmk "calc delta *"
 ## Functionality
 
 ## Params
@@ -1149,7 +1194,7 @@ calc_delta:
 
     ret
 
-sbmk "update weight"
+sbmk "update weight *"
 
 ## Functionality
 # wNeu <- wAlt - (learnrate * delta(error)) * x(input)
@@ -1173,7 +1218,7 @@ update_weight:
 
     ret
 
-sbmk "update vec3 weights"
+sbmk "update vec3 weights *"
 
 ## Functionality
 # wNeu <- wAlt - (learnrate * delta(error)) * x(input)
@@ -1181,14 +1226,16 @@ sbmk "update vec3 weights"
 ## Params
 # a0        :   backprop res / delta
 # a1        :   Learnrate
-# a2-a4     :   oldWeight
-# a5-a7     :   input x
+# a2        :   oldWeight vec3 (source src)
+# a3        :   input x vec3 (source src)
+# a4        :   destination vec3 (dst)
 
 # Output
-# a0-a2     :   new Weights
 update_vec3_weights:
+s
+    # --- X ---
+    psh a0                      # |a0(delta)
 
-    # X
     # a0 stays delta
     mov a1,LEARNRATE
     # a2 allready correct
@@ -1223,18 +1270,23 @@ sbmk "Relu vec3"
     ## Functionality
 
     ## Params
-    # a0-a2    :   input values
+    # a0        :   source vec3 (src)
+    # a1        :   destination vec3 (dst)
 
     ## Output
-    # a0-a2    :   result values
 relu_vec3:
+
+    mov a3,a1                   # dst vec -> a3
+    cal vec3_load               # loads source vec from a0
 
     fmax a0,a0,0.0              # max(0,X)
     fmax a1,a1,0.0              # max(0,X)
     fmax a2,a2,0.0              # max(0,X)
+    cal vec3_store
+
     ret
 
-sbmk "relu backprop"
+sbmk "relu backprop *"
 ## Params:
 # a0 = deltaOut
 # a1 = wOut
@@ -1255,7 +1307,7 @@ relu_backprop:
     ret
 
 bmk "NN Sigmoid"
-sbmk "Sigmoid"
+sbmk "Sigmoid *"
 
 ## Functionality
 # 1/(1+e^z) = z
@@ -1270,7 +1322,7 @@ sigmoid:
     #a0
     ret
 
-sbmk "Hard Sigmoid"
+sbmk "Hard Sigmoid *"
 
 ## Functionality
 # hard-sigmoid(x): max(0.0,min(1.0, (0.2*z+0.5))
@@ -1294,7 +1346,7 @@ hard_sigmoid:
     ret
 
 
-sbmk "Hard Sigmoid backprop"
+sbmk "Hard Sigmoid backprop *"
 
 ## Functionality
 
@@ -1310,7 +1362,7 @@ hard_sigmoid_backprop:
 
     ret
 
-sbmk "Hard Sigmoid vec3"
+sbmk "Hard Sigmoid vec3 *"
 
 ## Functionality
 
@@ -1342,9 +1394,13 @@ bmk "Programm Globals"
 sbmk "Global Vectors"
 
 vecInput: res u8t vector.vector_size
+# --- HIdden ---
 vecHid1:  res u8t vector.vector_size
 vecHid2:  res u8t vector.vector_size
 vecHid3:  res u8t vector.vector_size
+
+vecHidRes:res u8t vector.vector_size
+
 vecOut:   res u8t vector.vector_size
 
 bmk "Start "
@@ -1354,35 +1410,37 @@ _start:
     mov a1, -1.0
     mov a2, 1.0
     mov a3, vecInput
-    cal vec3_write
+    cal vec3_store
 
     # 2. vecHid1 init
     mov a0, 1.0
     mov a1, -1.0
     mov a2, 0.0
     mov a3, vecHid1
-    cal vec3_write
+    cal vec3_store
 
     # 3. vecHid2 init
     mov a0, -1.0
     mov a1, 1.0
     mov a2, 0.0
     mov a3, vecHid2
-    cal vec3_write
+    cal vec3_store
 
     # 4. vecHid3 init
     mov a0, 0.0
     mov a1, 0.0
     mov a2, 1.0
     mov a3, vecHid3
-    cal vec3_write
+    cal vec3_store
+
+
 
     # 5. vecOut init
     mov a0, -50.0
     mov a1, -50.0
     mov a2, 2.5
     mov a3, vecOut
-    cal vec3_write
+    cal vec3_store
 
     # start dialog 1 time
     cal start_dialog
