@@ -58,13 +58,29 @@ sbmk "vec3 store"
 # a3        :   dest vec3
 
 ## Output
-
 vec3_store:
 
 cea a3,0,1                              # load vec3 address in a3
     ste f32t,vector.x,a0                # write a0-a2 into vec
     ste f32t,vector.y,a1
     ste f32t,vector.z,a2
+
+    ret
+
+sbmk "vec3 copy"
+## Functionality
+# copys vec from addr a -> addr b
+
+## Params
+# a0    :   source vec3 address
+# a1    :   destination vec3 address
+
+## Output
+vec3_copy:
+
+    mov a3,a1
+    cal vec3_load
+    cal vec3_store
 
     ret
 
