@@ -270,7 +270,7 @@ vec3_swizzle:
 
 sbmk"vec3 clip"
 ## Functionality:
-# clips a vectors values to min max
+# clips a vectors values between (min;max)
 # (min,x,max)
 
 ## Params:
@@ -316,8 +316,8 @@ sbmk "vec3 add"
 ## Functionality:
 
 ## Params:
-# a0    : source vec3 A address (start)
-# a1    : source vec3 B address (end)
+# a0    : source vec3 A address
+# a1    : source vec3 B address
 # a2    : destination vec3 address
 
 ## Output:
