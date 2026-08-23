@@ -299,7 +299,7 @@ sbmk "vec3 magnitude"
 
 ## Output:
 # a0    : magnitude scalar (float)
-Vec3_magnitute:
+Vec3_magnitude:
     # --- Load source vector ---
     cal vec3_load                       # a0..a2 = x, y, z
 
@@ -325,7 +325,7 @@ Vec3_normalize:
     psh a0                              # | a1(dst) - a0(src)
 
     # --- Calculate magnitude ---
-    cal Vec3_magnitute                  # a0 = |v|
+    cal Vec3_magnitude                  # a0 = |v|
     mov t0, a0                          # t0 = magnitude divisor
 
     # --- Reload source vector ---
