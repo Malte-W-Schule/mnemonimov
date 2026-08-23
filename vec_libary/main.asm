@@ -362,7 +362,7 @@ vec3_difference_vec:
     # --- Z ---
     fsub a2,a5,a2
     # --- store in destination ---
-    psh a3                              # |     [a2(dst)]
+    pop a3                              # |     [a2(dst)]
     ret
 
 

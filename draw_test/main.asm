@@ -2,7 +2,7 @@ bmk "Readme"
 # ==============================================================================
 # Vec3 Math & Utility Library
 # ==============================================================================
-# Version: 1.1
+# Version: 1.2
 #
 # OVERVIEW:
 # A 3D single-precision float vector library
@@ -268,7 +268,103 @@ vec3_swizzle:
     cal vec3_store
     ret
 
+sbmk"vec3 clip"
+## Functionality:
+# clips a vectors values between (min;max)
+# (min,x,max)
+
+## Params:
+# a0    :   source vec3 A
+# a1    :   vec 3 (min values)
+# a2    :   vec 3 (max values)
+# a3    :   destionation vec3
+
+## Output:
+vec3_clip:
+
+    # --- save values ---
+    psh a3                              # |a3(dst)
+    psh a2                              # |a3(dst)-a2(max)
+    psh a1                              # |a3(dst)-a2(max)-a1(min)
+    # --- load vec A & Min values ---
+    cal vec3_load                       # values a0-a2
+    # --- tmp store values in t0-t2 ---
+    mov t0,a0
+    mov t1,a1
+    mov t2,a2
+    # --- load min max in a0-a5 ---
+    psh a0                              # |a3(dst)-a2(max)  [a1(min)]
+    psh a1                              # |a3(dst)          [a2(max)]
+    cal vec3_load_2
+    # a0..a2: Vec min (x, y, z)
+    # a3..a5: Vec max (x, y, z)
+    # t0..t2: Vec A (x, y, z)
+
+    # --- clamp ---
+    fclp a0,t0,a0,a3
+    fclp a1,t1,a1,a4
+    fclp a2,t2,a2,a5
+    # --- store in dst ---
+    psh a3                              # |     [a1(dst)]
+    cal vec3_store
+
+    ret
+
 bmk "Vec3 Calculations"
+
+sbmk "vec3 add"
+## Functionality:
+
+## Params:
+# a0    : source vec3 A address
+# a1    : source vec3 B address
+# a2    : destination vec3 address
+
+## Output:
+vec3_add:
+
+    psh a2                              # |a2(dst)
+    cal vec3_load_2                     # values in a0-a5
+    # vec A a0:x a1:y a2:z
+    # bec B a3:x a4:y a5:z
+
+    fadd a0,a0,a3                       # clmps x
+    fadd a1,a1,a4                       # clmps y
+    fadd a2,a2,a5                       # clmps z
+
+    pop a3                              # |     [a2(dst)]
+    cal vec3_store
+
+    ret
+
+sbmk "vec3 difference vec"
+
+## Functionality:
+
+## Params:
+# a0    : source vec3 A address (start)
+# a1    : source vec3 B address (end)
+# a2    : destination vec3 address
+
+## Output:
+vec3_difference_vec:
+
+    psh a2                              # |a2(destination)
+
+    cal vec3_load_2                     # load vec a b a0-a5
+    # vec A a0:x a1:y a2:z
+    # bec B a3:x a4:y a5:z
+
+    # --- X ---
+    fsub a0,a3,a0
+    # --- Y ---
+    fsub a1,a4,a1
+    # --- Z ---
+    fsub a2,a5,a2
+    # --- store in destination ---
+    pop a3                              # |     [a2(dst)]
+    ret
+
 
 sbmk "vec3 dot product"
 ## Functionality: Calculates dot product of two vectors: (A.x*B.x + A.y*B.y + A.z*B.z)
@@ -304,9 +400,9 @@ vec3_magnitude:
     cal vec3_load                       # a0..a2 = x, y, z
 
     # --- Sum of squares ---
-    fmul a0, a0, a0                     # t0 = x^2
-    ffma a0, a1, a1, a0                 # t0 = y^2 + x^2
-    ffma a0, a2, a2, a0                 # a0 = z^2 + (x^2 + y^2)
+    fmul t0, a0, a0                     # t0 = x^2
+    ffma t0, a1, a1, t0                 # t0 = y^2 + x^2
+    ffma a0, a2, a2, t0                 # a0 = z^2 + (x^2 + y^2)
     fsqrt a0, a0                        # a0 = sqrt(|v|^2)
     ret
 
@@ -560,85 +656,144 @@ draw_float_on_screen:
 
 bmk "Vec3 End"
 
+
 bmk "Draw Libary"
 # ==================================== #
 # Draw Libary
 # ==================================== #
 sbmk "Readme"
+
+vec3_0: res u8t vector.vector_size
+
+
+
+vec3_max_screen: res u8t vector.vector_size
+
+
+vec3_tmp_0: res u8t vector.vector_size
+vec3_tmp_1: res u8t vector.vector_size
+vec3_tmp_2: res u8t vector.vector_size
+
 bmk "Draw functions"
 
 sbmk "draw line"
-## Function
+## Function: Draws line with out-of-bounds pixel discarding
+## Params:
+# a0    : vec3 start (X, Y, Z)
+# a1    : vec3 end (X, Y, Z)
+# a2    : luma (1..255)
 
-## Params
-# a0    :   vec 3 start
-# a1    :   vec 3 end
-# a2    :   luma
-
-## Output
 draw_line:
+    psh s0
+    psh s1
+    psh s2
+    psh s3
+    psh s4
+    psh s5
 
-    # --- save ---
-    mov s0,a0                           # save vec3 start -> s0
-    mov s1,a1                           # save vec3 end -> s1
-    mov s2,a2                           # save luma -> s2
+    mov s0, a0                          # start vec3
+    mov s1, a1                          # end vec3
+    mov s2, a2                          # luma
 
-    # --- magnitute ---
+    # 1. Differenzvektor: delta = end - start
+    mov a0, s0
+    mov a1, s1
+    mov a2, vec3_tmp
+    cal vec3_difference_vec
+
+    # 2. Magnitude (Distanz) berechnen
+    mov a0, vec3_tmp
     cal vec3_magnitude
-    mov s3,a0                           # save magnitute -> s3
+    frou a0, a0                         # Auf Ganzzahl runden
+    fcti s4, a0                         # s4 = max steps
 
-    syscall SYS_PRINT_LINE_FLOAT
-    # --- get start position ---
-    mov a0,s0
+    cmp lte, s4, 0
+    jtr .draw_line_end_pixel
+
+    # 3. Differenzvektor auf Schrittweite 1.0 normalisieren
+    mov a0, vec3_tmp
+    mov a1, vec3_tmp
+    cal vec3_normalize
+
+    # 4. Startposition in Zeichen-Vektor kopieren
+    mov a0, s0
+    mov a1, vec3_tmp_draw
+    cal vec3_copy
+
+    mov s5, 0                           # s5 = Schleifenzähler
+
+.line_loop:
+    # --- Pixel-Position laden ---
+    mov a0, vec3_tmp_draw
     cal vec3_load
-    # fcti zu int
-    # --- draw start ---
-    sbpx a0,a1,s2
+    fcti a0, a0                         # float x -> int x
+    fcti a1, a1                         # float y -> int y
 
+    # --- Bounds Check (Pixel verwerfen wenn außerhalb des Bildschirms) ---
+    cmp lt, a0, 0
+    jtr .skip_pixel
+    cmp gte, a0, SCREEN_WIDTH
+    jtr .skip_pixel
+    cmp lt, a1, 0
+    jtr .skip_pixel
+    cmp gte, a1, SCREEN_HEIGHT
+    jtr .skip_pixel
 
+    # Nur zeichnen, wenn Punkt wirklich auf dem Bildschirm liegt
+    sbpx a0, a1, s2
 
+.skip_pixel:
+    # --- 1 Schritt weitergehen ---
+    mov a0, vec3_tmp_draw
+    mov a1, vec3_tmp
+    mov a2, vec3_tmp_draw
+    cal vec3_add
 
+    inc s5
+    cmp lte, s5, s4
+    jtr .line_loop
 
-
-    # --- draw end ---
-    mov a0,s1
+.draw_line_end_pixel:
+    # Endpixel prüfen und zeichnen
+    mov a0, s1
     cal vec3_load
-    sbpx a0,a1,s2
+    fcti a0, a0
+    fcti a1, a1
 
+    cmp lt, a0, 0
+    jtr .draw_line_done
+    cmp gte, a0, SCREEN_WIDTH
+    jtr .draw_line_done
+    cmp lt, a1, 0
+    jtr .draw_line_done
+    cmp gte, a1, SCREEN_HEIGHT
+    jtr .draw_line_done
 
+    sbpx a0, a1, s2
+
+.draw_line_done:
+    pop s5
+    pop s4
+    pop s3
+    pop s2
+    pop s1
+    pop s0
     ret
 
 
 bmk "start"
 start_1:    res u8t vector.vector_size
 end_1:      res u8t vector.vector_size
-start_2:    res u8t vector.vector_size
-end_2:      res u8t vector.vector_size
+
+vec3_tmp_draw:      res u8t vector.vector_size
 
 _start: # Runs once when the VM starts.
     # Initialize your game state here.
-    mov a0,20
-    mov a1,20
-    mov a2,0
+
+    mov a0,20.0
+    mov a1,200.0
+    mov a2,0.0
     mov a3,start_1
-    cal vec3_store
-
-    mov a0,20
-    mov a1,100
-    mov a2,0
-    mov a3,end_1
-    cal vec3_store
-
-    mov a0,70
-    mov a1,70
-    mov a2,0
-    mov a3,start_2
-    cal vec3_store
-
-    mov a0,90
-    mov a1,90
-    mov a2,0
-    mov a3,end_2
     cal vec3_store
 
     exit
@@ -646,21 +801,27 @@ _start: # Runs once when the VM starts.
 bmk "update"
 _update: # Runs at 60 Hz.
     # Write your game logic here.
+
+    syscall SYS_GET_MOUSE_POSITION      # a0 = x (int), a1 = y (int)
+    fctf a0, a0                         # int -> float
+    fctf a1, a1                         # int -> float
+    mov a2, 0.0                         # z = 0.0 (float)
+    mov a3, end_1                       # destination
+    cal vec3_store                      # In end_1 speichern
+
+
     exit
 
 bmk "draw"
 _draw: # Runs at 60 Hz and updates the front buffer.
     # Draw graphics to the screen here.
-    mov a0,start_1
-    mov a1,end_1
-    mov a2,255
-    cal draw_line
+ # --- Mausposition holen und als end_1 speichern ---
 
-    mov a0,start_2
-    mov a1,end_2
-    mov a2,130
+    # --- Linie von start_1 zur Maus zeichnen ---
+    mov a0, start_1
+    mov a1, end_1
+    mov a2, 155                         # Luma 255
     cal draw_line
-
     exit
 
 bmk "input"
