@@ -2,7 +2,7 @@ bmk "Readme"
 # ==============================================================================
 # Vec3 Math & Utility Library
 # ==============================================================================
-# Version: 1.1
+# Version: 1.2
 #
 # OVERVIEW:
 # A 3D single-precision float vector library
@@ -268,6 +268,48 @@ vec3_swizzle:
     cal vec3_store
     ret
 
+sbmk"vec3 clip"
+## Functionality:
+# clips a vectors values to min max
+# (min,x,max)
+
+## Params:
+# a0    :   source vec3 A
+# a1    :   vec 3 (min values)
+# a2    :   vec 3 (max values)
+# a3    :   destionation vec3
+
+## Output:
+vec3_clip:
+
+    # --- save values ---
+    psh a3                              # |a3(dst)
+    psh a2                              # |a3(dst)-a2(max)
+    psh a1                              # |a3(dst)-a2(max)-a1(min)
+    # --- load vec A & Min values ---
+    cal vec3_load                       # values a0-a2
+    # --- tmp store values in t0-t2 ---
+    mov t0,a0
+    mov t1,a1
+    mov t2,a2
+    # --- load min max in a0-a5 ---
+    psh a0                              # |a3(dst)-a2(max)  [a1(min)]
+    psh a1                              # |a3(dst)          [a2(max)]
+    cal vec3_load_2
+    # a0..a2: Vec min (x, y, z)
+    # a3..a5: Vec max (x, y, z)
+    # t0..t2: Vec A (x, y, z)
+
+    # --- clamp ---
+    fclp a0,t0,a0,a3
+    fclp a1,t1,a1,a4
+    fclp a2,t2,a2,a5
+    # --- store in dst ---
+    psh a3                              # |     [a1(dst)]
+    cal vec3_store
+
+    ret
+
 bmk "Vec3 Calculations"
 
 sbmk "vec3 add"
@@ -286,9 +328,9 @@ vec3_add:
     # vec A a0:x a1:y a2:z
     # bec B a3:x a4:y a5:z
 
-    fadd a0,a0,a3
-    fadd a1,a1,a4
-    fadd a2,a2,a5
+    fadd a0,a0,a3                       # clmps x
+    fadd a1,a1,a4                       # clmps y
+    fadd a2,a2,a5                       # clmps z
 
     pop a3                              # |     [a2(dst)]
     cal vec3_store
