@@ -1098,6 +1098,7 @@ state_5:
     syscall SYS_PRINT_LINE_STRING
 
     # Reset dialog back to Main Menu
+
     mov a0, 0
     cal set_dialog
     mov a0, 0
@@ -1441,8 +1442,6 @@ _start:
     mov a2, 1.0
     mov a3, vecHid3
     cal vec3_store
-
-
 
     # 5. vecOut init
     mov a0, -50.0

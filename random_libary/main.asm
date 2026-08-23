@@ -17,19 +17,23 @@ sbmk "rnd init"
 # Output
 rnd_init:
 
-
-    syscall SYS_GET_MOUSE_POSITION
-    mov a1,a0
+    # --- get time ---
     syscall SYS_GET_UNIX_TIME
-    fadd a0,a0,a1
+
 
     syscall SYS_PRINT_LINE_INT
+
+    sll a0,7
+    syscall SYS_PRINT_LINE_INT
+
+
+
 
     ret
 
 
 _start:
-
+    cal rnd_init
 
 
     exit
