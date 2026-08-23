@@ -299,7 +299,7 @@ sbmk "vec3 magnitude"
 
 ## Output:
 # a0    : magnitude scalar (float)
-Vec3_magnitude:
+vec3_magnitude:
     # --- Load source vector ---
     cal vec3_load                       # a0..a2 = x, y, z
 
@@ -319,13 +319,13 @@ sbmk "vec3 normalize"
 
 ## Output:
 # none
-Vec3_normalize:
+vec3_normalize:
     # --- Save parameters ---
     psh a1                              # | a1(dst)
     psh a0                              # | a1(dst) - a0(src)
 
     # --- Calculate magnitude ---
-    cal Vec3_magnitude                  # a0 = |v|
+    cal vec3_magnitude                  # a0 = |v|
     mov t0, a0                          # t0 = magnitude divisor
 
     # --- Reload source vector ---
@@ -355,7 +355,7 @@ sbmk "vec3 cross product"
 
 ## Output:
 # none
-Vec3_cross_product:
+vec3_cross_product:
     psh a2                              # | a2(dst)
 
     # --- Load Vec A and Vec B ---
@@ -605,10 +605,10 @@ draw_line:
 
 
 bmk "start"
-start_1: res u8t vector.vector_size
-end_1: res u8t vector.vector_size
-start_2: res u8t vector.vector_size
-end_2: res u8t vector.vector_size
+start_1:    res u8t vector.vector_size
+end_1:      res u8t vector.vector_size
+start_2:    res u8t vector.vector_size
+end_2:      res u8t vector.vector_size
 
 _start: # Runs once when the VM starts.
     # Initialize your game state here.
