@@ -328,9 +328,7 @@ vec3_add:
     # vec A a0:x a1:y a2:z
     # bec B a3:x a4:y a5:z
 
-    fadd a0,a0,a3                       # clmps x
-    fadd a1,a1,a4                       # clmps y
-    fadd a2,a2,a5                       # clmps z
+    vfadd a0..a2,a0..,a3..
 
     pop a3                              # |     [a2(dst)]
     cal vec3_store
