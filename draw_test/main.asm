@@ -328,9 +328,7 @@ vec3_add:
     # vec A a0:x a1:y a2:z
     # bec B a3:x a4:y a5:z
 
-    fadd a0,a0,a3                       # clmps x
-    fadd a1,a1,a4                       # clmps y
-    fadd a2,a2,a5                       # clmps z
+    vfadd a0..a2,a0..,a3..
 
     pop a3                              # |     [a2(dst)]
     cal vec3_store
@@ -363,6 +361,7 @@ vec3_difference_vec:
     fsub a2,a5,a2
     # --- store in destination ---
     pop a3                              # |     [a2(dst)]
+    cal vec3_store
     ret
 
 
@@ -665,16 +664,43 @@ sbmk "Readme"
 
 vec3_0: res u8t vector.vector_size
 
-
-
 vec3_max_screen: res u8t vector.vector_size
-
 
 vec3_tmp_0: res u8t vector.vector_size
 vec3_tmp_1: res u8t vector.vector_size
 vec3_tmp_2: res u8t vector.vector_size
 
 bmk "Draw functions"
+
+sbmk "draw pixel save"
+
+## Function: draws a pixel on the screen... and doesnt when its outside the window
+
+## Params:
+# a0    : x
+# a1    : y
+# a2    : luma (1..255)
+draw_float_pixel_save:
+    # --- Bounds Check (0.0 <= x < 320.0 und 0.0 <= y < 240.0) ---
+
+    fcti a0, a0
+    fcti a1, a1
+    cmp lt, a0, 0
+    jtr .dont_draw_pixel_save
+    cmp lt, a1, 0
+    jtr .dont_draw_pixel_save
+
+    cmp gt, a0, (SCREEN_WIDTH-1)
+    jtr .dont_draw_pixel_save
+    cmp gt, a1, (SCREEN_HEIGHT-1)
+    jtr .dont_draw_pixel_save
+
+    # --- Draw ---
+    sbpx a0, a1, a2
+
+.dont_draw_pixel_save:
+    ret
+
 
 sbmk "draw line"
 ## Function: Draws line with out-of-bounds pixel discarding
@@ -684,94 +710,68 @@ sbmk "draw line"
 # a2    : luma (1..255)
 
 draw_line:
+
+    # --- save values ---
     psh s0
     psh s1
     psh s2
     psh s3
     psh s4
     psh s5
-
+    # --- save input > s ---
     mov s0, a0                          # start vec3
     mov s1, a1                          # end vec3
     mov s2, a2                          # luma
 
-    # 1. Differenzvektor: delta = end - start
+    # end - start
     mov a0, s0
     mov a1, s1
-    mov a2, vec3_tmp
+    mov a2, vec3_tmp_0
     cal vec3_difference_vec
 
-    # 2. Magnitude (Distanz) berechnen
-    mov a0, vec3_tmp
+    # --- Magnitute (distance) ---
+    mov a0, vec3_tmp_0
     cal vec3_magnitude
     frou a0, a0                         # Auf Ganzzahl runden
     fcti s4, a0                         # s4 = max steps
 
-    cmp lte, s4, 0
-    jtr .draw_line_end_pixel
-
-    # 3. Differenzvektor auf Schrittweite 1.0 normalisieren
-    mov a0, vec3_tmp
-    mov a1, vec3_tmp
+    # --- Normalize ---
+    mov a0, vec3_tmp_0                  # a0    : source vec3 address
+    mov a1, vec3_tmp_0                  # a1    : destination vec3 address
     cal vec3_normalize
 
-    # 4. Startposition in Zeichen-Vektor kopieren
-    mov a0, s0
-    mov a1, vec3_tmp_draw
-    cal vec3_copy
+    # --- loop ---
 
-    mov s5, 0                           # s5 = Schleifenzähler
+    mov a0, s0                          # load start -> a0
+    mov a1, vec3_tmp_1                  # a1    : dst vec
+    cal vec3_copy                       # copy start into tmp_1 (current)
 
-.line_loop:
-    # --- Pixel-Position laden ---
-    mov a0, vec3_tmp_draw
+    mov s5,0                            # counter to 0
+    add s4,s4,1
+    # - start loop -
+.draw_line_loop:
+
+    # - draw -
+    mov a0,vec3_tmp_1
+    # a0    : x
+    # a1    : y
+
     cal vec3_load
-    fcti a0, a0                         # float x -> int x
-    fcti a1, a1                         # float y -> int y
+    mov a2,s2                           # a2    : luma (1..255)
 
-    # --- Bounds Check (Pixel verwerfen wenn außerhalb des Bildschirms) ---
-    cmp lt, a0, 0
-    jtr .skip_pixel
-    cmp gte, a0, SCREEN_WIDTH
-    jtr .skip_pixel
-    cmp lt, a1, 0
-    jtr .skip_pixel
-    cmp gte, a1, SCREEN_HEIGHT
-    jtr .skip_pixel
-
-    # Nur zeichnen, wenn Punkt wirklich auf dem Bildschirm liegt
-    sbpx a0, a1, s2
-
-.skip_pixel:
-    # --- 1 Schritt weitergehen ---
-    mov a0, vec3_tmp_draw
-    mov a1, vec3_tmp
-    mov a2, vec3_tmp_draw
+    cal draw_float_pixel_save
+    # - increase -
+    mov a0,vec3_tmp_1                   # load param 1 current vec
+    mov a1,vec3_tmp_0                   # load param 2 to add (normalized)
+    mov a2,vec3_tmp_1                   # dst
     cal vec3_add
 
+    # - end loop -
     inc s5
-    cmp lte, s5, s4
-    jtr .line_loop
+    cmp lt,s5,s4                       # while counter < max
+    jtr .draw_line_loop
 
-.draw_line_end_pixel:
-    # Endpixel prüfen und zeichnen
-    mov a0, s1
-    cal vec3_load
-    fcti a0, a0
-    fcti a1, a1
-
-    cmp lt, a0, 0
-    jtr .draw_line_done
-    cmp gte, a0, SCREEN_WIDTH
-    jtr .draw_line_done
-    cmp lt, a1, 0
-    jtr .draw_line_done
-    cmp gte, a1, SCREEN_HEIGHT
-    jtr .draw_line_done
-
-    sbpx a0, a1, s2
-
-.draw_line_done:
+    .draw_line_done:
     pop s5
     pop s4
     pop s3
@@ -780,12 +780,9 @@ draw_line:
     pop s0
     ret
 
-
 bmk "start"
 start_1:    res u8t vector.vector_size
 end_1:      res u8t vector.vector_size
-
-vec3_tmp_draw:      res u8t vector.vector_size
 
 _start: # Runs once when the VM starts.
     # Initialize your game state here.
@@ -800,24 +797,20 @@ _start: # Runs once when the VM starts.
 
 bmk "update"
 _update: # Runs at 60 Hz.
-    # Write your game logic here.
 
     syscall SYS_GET_MOUSE_POSITION      # a0 = x (int), a1 = y (int)
     fctf a0, a0                         # int -> float
     fctf a1, a1                         # int -> float
     mov a2, 0.0                         # z = 0.0 (float)
     mov a3, end_1                       # destination
-    cal vec3_store                      # In end_1 speichern
-
+    cal vec3_store
 
     exit
 
 bmk "draw"
 _draw: # Runs at 60 Hz and updates the front buffer.
     # Draw graphics to the screen here.
- # --- Mausposition holen und als end_1 speichern ---
 
-    # --- Linie von start_1 zur Maus zeichnen ---
     mov a0, start_1
     mov a1, end_1
     mov a2, 155                         # Luma 255
