@@ -270,6 +270,35 @@ vec3_swizzle:
 
 bmk "Vec3 Calculations"
 
+sbmk "vec3 difference vec"
+
+## Functionality:
+
+## Params:
+# a0    : source vec3 A address (start)
+# a1    : source vec3 B address (end)
+# a2    : destination vec3 address
+
+## Output:
+vec3_difference_vec:
+
+    psh a2                              # |a2(destination)
+
+    cal vec3_load_2                     # load vec a b a0-a5
+    # vec A a0:x a1:y a2:z
+    # bec B a3:x a4:y a5:z
+
+    # --- X ---
+    fsub a0,a3,a0
+    # --- Y ---
+    fsub a1,a4,a1
+    # --- Z ---
+    fsub a2,a5,a2
+    # --- store in destination ---
+    psh a3                              # |     [a2(dst)]
+    ret
+
+
 sbmk "vec3 dot product"
 ## Functionality: Calculates dot product of two vectors: (A.x*B.x + A.y*B.y + A.z*B.z)
 

@@ -304,9 +304,9 @@ vec3_magnitude:
     cal vec3_load                       # a0..a2 = x, y, z
 
     # --- Sum of squares ---
-    fmul t0, a0, a0                     # t0 = x^2
-    ffma t0, a1, a1, t0                 # t0 = y^2 + x^2
-    ffma a0, a2, a2, t0                 # a0 = z^2 + (x^2 + y^2)
+    fmul a0, a0, a0                     # t0 = x^2
+    ffma a0, a1, a1, a0                 # t0 = y^2 + x^2
+    ffma a0, a2, a2, a0                 # a0 = z^2 + (x^2 + y^2)
     fsqrt a0, a0                        # a0 = sqrt(|v|^2)
     ret
 
@@ -578,27 +578,32 @@ sbmk "draw line"
 ## Output
 draw_line:
 
-
     # --- save ---
-    mov t0,a0                           # save vec3 start -> t0
-    mov t1,a1                           # save vec3 end -> t1
-    mov t2,a2                           # save luma -> t2
-    # --- load values ---
-    cal vec3_magnitude
+    mov s0,a0                           # save vec3 start -> s0
+    mov s1,a1                           # save vec3 end -> s1
+    mov s2,a2                           # save luma -> s2
 
     # --- magnitute ---
+    cal vec3_magnitude
+    mov s3,a0                           # save magnitute -> s3
+
+    syscall SYS_PRINT_LINE_FLOAT
+    # --- get start position ---
+    mov a0,s0
+    cal vec3_load
+    # fcti zu int
+    # --- draw start ---
+    sbpx a0,a1,s2
 
 
 
-    # --- Draw start and end ---
-    sbpx a0,a1,t2
-    sbpx a2,a3,t2
-    # --- calc "gradient"/"steigung" ---
-    # x
-    sub t0,a2,a0
-    sub t1,a3,a1
-    #
 
+
+
+    # --- draw end ---
+    mov a0,s1
+    cal vec3_load
+    sbpx a0,a1,s2
 
 
     ret
