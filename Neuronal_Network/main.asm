@@ -885,13 +885,9 @@ nn_boundary_plot:
     mul t0, t0, 10                      # Pixel-Offset 0 .. 200 px
     add a0, s2, t0                      # a0 = Screen Pos X (200..400)
 
-    # PosY = s3 + (10 + s1) * 10
-    # s3 - (10+s)*10
-    # start y
-    add t1, 10, s1                      # t1 = 10 - s1 (für y=10 -> 0; für y=-10 -> 20)
-    mul t1, t1, 10                      # Pixel-Offset 0 .. 200 px
-    add a1, s3, t1                      # a1 = Screen Pos Y
-
+    sub t1, 10, s1                      # t1 = 10 - s1 (für y=10 -> 0; für y=-10 -> 20)
+    mul t1, t1, 10
+    add a1, s3, t1
     # --- draw box ---
     mov a2,s4# a2    : nn result value
     cal nn_draw_box
