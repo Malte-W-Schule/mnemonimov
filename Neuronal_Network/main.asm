@@ -678,6 +678,11 @@ sbmk "predict_nn"
 # a0 result of nn
 predict_nn:
 
+    # --- save ---
+    psh s0
+    psh s1
+    psh s2
+
     # calc
     # --- input layer * hidden layer (1/3) ---
 
@@ -725,11 +730,16 @@ predict_nn:
 
     psh a0                              # |a0
 
-    mov a0, msg_pred                    # print prediction message
-    syscall SYS_PRINT_LINE_STRING       # print
+    #mov a0, msg_pred                    # print prediction message
+    #syscall SYS_PRINT_LINE_STRING       # print
 
     pop a0                              # |     (a0)
-    syscall SYS_PRINT_LINE_FLOAT        # print result
+    #syscall SYS_PRINT_LINE_FLOAT        # print result
+
+    # --- pop ---
+    pop s2
+    pop s1
+    pop s0
 
     ret
 sbmk "Back Propagation *"
@@ -822,6 +832,144 @@ train_nn:
 
     ret
 
+bmk "NN print & plot"
+sbmk "nn boundary plot"
+
+current_plot_y: emb i32t -10            # Start bei -10
+## Functionality: Draws 3 component bar representations on LCD screen
+
+## Params:
+# a0    :   x start
+# a1    :   y start
+
+## Output:
+nn_boundary_plot:
+
+
+    mov a0,60                           # a0    :   x start
+    mov a1,15                           # a1    :   y start
+    # --- save ---
+    psh s0
+    psh s1
+    psh s2
+    psh s3
+    psh s4
+    #
+    mov s2,a0                           # x start -> s2
+    mov s3,a1                           # y start -> s3
+
+    mov s1,-10                          # y
+
+    # --- loop y ---
+    # for y -10 -> 10
+    .y_loop_draw_nn:
+    mov s0,-10                          # x reset
+
+    # --- loop x ---
+    # for x -10 -> 10
+    .x_loop_draw_nn:
+
+    # --- nn predict ---
+    fctf a0,s0                          # x for nn
+    fctf a1,s1                          # y for nn
+    mov a2,1.0
+    mov a3,vecInput
+    cal vec3_store
+
+    cal predict_nn
+    mov s4,a0
+
+    # --- calc screen cords ---
+    # PosX = s2 + (s0 + 10) * 10
+    add t0, s0, 10                      # Grid-Index 0 .. 20
+    mul t0, t0, 10                      # Pixel-Offset 0 .. 200 px
+    add a0, s2, t0                      # a0 = Screen Pos X (200..400)
+
+    # PosY = s3 + (10 + s1) * 10
+    # s3 - (10+s)*10
+    # start y
+    add t1, 10, s1                      # t1 = 10 - s1 (für y=10 -> 0; für y=-10 -> 20)
+    mul t1, t1, 10                      # Pixel-Offset 0 .. 200 px
+    add a1, s3, t1                      # a1 = Screen Pos Y
+
+    # --- draw box ---
+    mov a2,s4# a2    : nn result value
+    cal nn_draw_box
+
+    # x++ check
+    inc s0                              # x++
+    cmp lt,s0,11                        # while x < 11 (-10 <-> 10)
+    jtr .x_loop_draw_nn
+
+    yield
+
+    # y++ check
+    inc s1
+    cmp lt,s1,11
+    jtr .y_loop_draw_nn
+
+
+    # --- pop ---
+    pop s4
+    pop s3
+    pop s2
+    pop s1
+    pop s0
+
+
+    ret
+sbmk "nn draw box"
+## Functionality:
+# each box 10pixel
+
+## Params:
+# a0    :   x start
+# a1    :   y start
+# a2    :   value (0.0-1.0 ; from sigmoid)
+
+## Output:
+nn_draw_box:
+
+    # --- set luma ---
+    ffma a4,a2,245.0,10.0                    # 255 * vlaue
+    fcti a4,a4                          # float -> int
+    clp a4,a4,0,255
+
+    mov a2,10                           # width 10
+    mov a3,10                           # height 10
+    #Args: a0:pos_x, a1:pos_y, a2:size_x, a3:size_y, a4:luma
+    syscall SYS_DRAW_RECT               # draw
+
+
+    ret
+
+
+sbmk "nn print"
+
+nn_print:
+
+    mov a1,vecInput
+    mov a0,10
+    cal vec3_draw_on_screen
+
+    mov a1,vecHid1
+    mov a0,60
+    cal vec3_draw_on_screen
+
+    mov a1,vecHid2
+    mov a0,110
+    cal vec3_draw_on_screen
+
+    mov a1,vecHid3
+    mov a0,160
+    cal vec3_draw_on_screen
+
+    mov a1,vecOut
+    mov a0,210
+    cal vec3_draw_on_screen
+    ret
+
+
 sbmk "print nn text"
 
 print_line: emb string "=========================================="
@@ -867,23 +1015,11 @@ print_nn:
 
 
 
-sbmk "Relu"
-
-## Functionality
-
-## Params
-# a0    :   input
-
-## Output
-# a0    :   result
-relu:
-    # a0 input
-    # if a0 < 0 a0 = 0
-
-    fmax a0,a0,0.0              # max(0,X)
-    ret
 
 bmk "NN Dialog"
+
+sbmk "plot state"
+needs_redraw:   emb u32t 1              # 1 = neu zeichnen, 0 = fertig
 sbmk "Data"
 
 msg_start:       emb string "Welcome to this Neural Network"
@@ -1077,31 +1213,30 @@ state_4:
 
 sbmk "State 5"
 state_5:
+
+
+    mov a0, msg_pred
+    syscall SYS_PRINT_LINE_STRING
+
     mov a0, buffer
     cal parse_single_float              # Parse Target Result (y)
     mov s15, a0                         # s15 = Target value (y)
 
-    # 1. Forward Pass
     cal predict_nn                      # a0 = Prediction (y_hat)
+    syscall SYS_PRINT_LINE_FLOAT
 
-    # 2. Backpropagation
     mov a1, s15                         # a1 = Target value (y)
     cal packprop_nn                     # Run backprop with a0 (y_hat) and a1 (y)
 
-    # 3. Optional Debug Print
-    cmp eq, PRINT_NN_IN_TERMINAL, true
-    jfs .skip_print
-    cal print_nn
-.skip_print:
-
-    mov a0, msg_done
-    syscall SYS_PRINT_LINE_STRING
 
     # Reset dialog back to Main Menu
     mov a0, 0
     cal set_dialog
     mov a0, 0
     cal set_state
+    # --- redraw ---
+    mov t0, 1
+    str u32t, needs_redraw, t0
     ret
 
 # --- Inference Flow (Continuous Loop) ---
@@ -1132,8 +1267,12 @@ state_7:
     cea vecInput, 0, 1
     ste f32t, vector.z, 1.0             # Set Bias Z = 1.0
 
+    mov a0, msg_pred
+    syscall SYS_PRINT_LINE_STRING
     # Execute Prediction (prints result internally)
     cal predict_nn
+
+    syscall SYS_PRINT_LINE_FLOAT
 
     # Immediately prompt for the next X (Loop)
     mov a0, msg_prompt_x
@@ -1265,6 +1404,22 @@ update_vec3_weights:
     ret
 
 bmk "NN Relu"
+
+sbmk "Relu"
+
+## Functionality
+
+## Params
+# a0    :   input
+
+## Output
+# a0    :   result
+relu:
+    # a0 input
+    # if a0 < 0 a0 = 0
+
+    fmax a0,a0,0.0              # max(0,X)
+    ret
 
 sbmk "Relu vec3"
 ## Functionality
@@ -1414,6 +1569,8 @@ vecOut:   res u8t vector.vector_size
 
 bmk "Start "
 _start:
+
+
      # 1. vecInput init
     mov a0, 1.0
     mov a1, -1.0
@@ -1443,7 +1600,6 @@ _start:
     cal vec3_store
 
 
-
     # 5. vecOut init
     mov a0, -50.0
     mov a1, -50.0
@@ -1453,9 +1609,8 @@ _start:
 
     # start dialog 1 time
     cal start_dialog
-
+    cal nn_boundary_plot
     exit
-
 
 bmk "Update"
 _update: # Runs at 60 Hz.
@@ -1463,38 +1618,27 @@ _update: # Runs at 60 Hz.
     exit
 
 bmk "Draw"
-_draw: # Runs at 60 Hz and updates the front buffer.
-    # Draw graphics to the screen here.
+_draw: # Läuft mit 60 Hz[cite: 1]
+    # 1. Back-Buffer erhalten (verhindert das Löschen bereits gezeichneter Zeilen)[cite: 1]
+    syscall SYS_PRESERVE_BACK_BUFFER
+    # --- plot nn --
+    lod u32t, t0, needs_redraw          # Flag laden[cite: 1]
+    cmp eq, t0, 1
+    jfsa .no_redraw                     # Wenn nicht 1 -> überspringen[cite: 1]
 
-    # get vectors:
+    # --- reset flat ---
+    mov t0, 0
+    str u32t, needs_redraw, t0
 
-    mov a1,vecInput
-    mov a0,10
-    cal vec3_draw_on_screen
+    # --- replot ---
+    cal nn_boundary_plot
 
-    mov a1,vecHid1
-    mov a0,60
-    cal vec3_draw_on_screen
-
-    mov a1,vecHid2
-    mov a0,110
-    cal vec3_draw_on_screen
-
-    mov a1,vecHid3
-    mov a0,160
-    cal vec3_draw_on_screen
-
-    mov a1,vecOut
-    mov a0,210
-    cal vec3_draw_on_screen
-
-
-    exit
+    .no_redraw:
+    exit                               # Frame beenden[cite: 1]
 
 bmk "Input"
 _input: # Runs when input state changes.
     # React to player input here.
-
     exit
 
 
