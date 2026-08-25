@@ -1595,7 +1595,6 @@ _start:
     mov a3, vecHid3
     cal vec3_store
 
-
     # 5. vecOut init
     mov a0, -50.0
     mov a1, -50.0
@@ -1614,13 +1613,13 @@ _update: # Runs at 60 Hz.
     exit
 
 bmk "Draw"
-_draw: # Läuft mit 60 Hz[cite: 1]
-    # 1. Back-Buffer erhalten (verhindert das Löschen bereits gezeichneter Zeilen)[cite: 1]
+_draw: # Läuft mit 60 Hz
+    # 1. Back-Buffer erhalten (verhindert das Löschen bereits gezeichneter Zeilen)
     syscall SYS_PRESERVE_BACK_BUFFER
     # --- plot nn --
-    lod u32t, t0, needs_redraw          # Flag laden[cite: 1]
+    lod u32t, t0, needs_redraw          # Flag laden
     cmp eq, t0, 1
-    jfsa .no_redraw                     # Wenn nicht 1 -> überspringen[cite: 1]
+    jfsa .no_redraw                     # Wenn nicht 1 -> überspringen
 
     # --- reset flat ---
     mov t0, 0
@@ -1630,7 +1629,7 @@ _draw: # Läuft mit 60 Hz[cite: 1]
     cal nn_boundary_plot
 
     .no_redraw:
-    exit                               # Frame beenden[cite: 1]
+    exit                               # Frame beenden
 
 bmk "Input"
 _input: # Runs when input state changes.

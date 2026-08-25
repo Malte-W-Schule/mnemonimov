@@ -701,7 +701,6 @@ draw_float_pixel_save:
 .dont_draw_pixel_save:
     ret
 
-
 sbmk "draw line"
 ## Function: Draws line with out-of-bounds pixel discarding
 ## Params:
