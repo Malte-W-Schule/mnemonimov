@@ -1,0 +1,9 @@
+services:
+  asm-visualizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "455:5000"
+    container_name: asm-visualizer
+    restart: unless-stopped

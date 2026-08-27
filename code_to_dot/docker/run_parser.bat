@@ -1,0 +1,6 @@
+@echo off
+echo Building Docker Image...
+docker build -t asm-parser -f Dockerfile .
+echo.
+echo Running Web Server on http://localhost:455 ...
+docker run --rm -p 455:5000 --name asm-visualizer asm-parser

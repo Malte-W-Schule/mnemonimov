@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mnemonimov ASM Visualizer</title>
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- CodeMirror JS -->
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/gas/gas.js"></script>
+    
+    <!-- SVG Pan Zoom & Graphviz WASM -->
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphviz.umd.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Mnemonimov ASM Visualizer</h1>
+            <p class="subtitle">Visualize control flow and register usage of your assembly code</p>
+        </header>
+        
+        <main class="app-main">
+            <!-- Left Panel: Input -->
+            <section class="panel input-panel">
+                <div class="panel-header">
+                    <h2>Assembly Code</h2>
+                    <div class="file-upload-wrapper">
+                        <label for="file-upload" class="upload-btn">Upload File</label>
+                        <input type="file" id="file-upload" accept=".asm,.txt" />
+                    </div>
+                </div>
+                
+                <div class="drop-zone" id="drop-zone">
+                    <p class="drop-instruction">Drag your .asm file here or paste code below</p>
+                    <textarea id="code-input" placeholder="Paste your ASM code here..."></textarea>
+                </div>
+                
+                <div class="mode-selection">
+                    <label class="switch-container">
+                        <input type="checkbox" id="chk-advanced-mode" />
+                        <span class="switch-label">Advanced Mode (Show Code)</span>
+                    </label>
+                    <label class="switch-container">
+                        <input type="checkbox" id="chk-group-by-bmk" />
+                        <span class="switch-label">Group by Bookmark</span>
+                    </label>
+                </div>
+                
+                <button id="btn-visualize" class="action-btn">
+                    <span>Visualize</span>
+                    <div class="spinner" id="spinner"></div>
+                </button>
+            </section>
+            
+            <!-- Right Panel: Output -->
+            <section class="panel output-panel">
+                <div class="panel-header">
+                    <h2>Graph Visualization</h2>
+                    <div class="graph-actions">
+                        <button id="btn-zoom-in" class="icon-btn" title="Zoom In">+</button>
+                        <button id="btn-zoom-out" class="icon-btn" title="Zoom Out">-</button>
+                        <button id="btn-zoom-reset" class="icon-btn" title="Reset Zoom">↺</button>
+                        <button id="btn-download" class="action-btn-sm" title="Download PNG">Download PNG</button>
+                        <button id="btn-download-svg" class="action-btn-sm" title="Download SVG">Download SVG</button>
+                    </div>
+                </div>
+                
+                <div class="graph-container" id="graph-container">
+                    <div class="placeholder-msg" id="placeholder-msg">
+                        <svg class="placeholder-icon" viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z" />
+                        </svg>
+                        <p>Paste code and click "Visualize" to display the graph.</p>
+                    </div>
+                    <div id="svg-wrapper" class="svg-wrapper"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script type="module" src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
