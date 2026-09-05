@@ -1020,14 +1020,14 @@ _start:
 
     # 2. vecHid1 init
     mov a0, 1.0
-    mov a1, -1.0
+    mov a1, -2.0
     mov a2, 0.0
     mov a3, vecHid1
     cal vec3_store
 
     # 3. vecHid2 init
     mov a0, -1.0
-    mov a1, 1.0
+    mov a1, 2.0
     mov a2, 0.0
     mov a3, vecHid2
     cal vec3_store

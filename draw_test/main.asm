@@ -656,6 +656,12 @@ draw_float_on_screen:
 bmk "Vec3 End"
 
 
+
+bmk "Assets"
+
+spaceship: emb file "assets/spcae.png"
+
+
 bmk "Draw Libary"
 # ==================================== #
 # Draw Libary
@@ -797,12 +803,63 @@ _start: # Runs once when the VM starts.
 bmk "update"
 _update: # Runs at 60 Hz.
 
+    # keyboard
+    syscall SYS_GET_INPUT
+
+    # BTN_LEFT
+    and t0,a0,BTN_LEFT
+    and t1,a0,BTN_RIGHT
+    cmp neq, t0, 0
+    jfs .left_button
+    # wenn getdrückt
+
+    mov a0,start_1
+    cal vec3_load
+    fsub a0,a0,1.0
+    mov a3, start_1                       # destination
+    cal vec3_store
+
+.left_button:
+    # wenn nich gedrückt bzw
+    cmp neq,t1,0
+    jfs .right_button
+
+    mov a0,start_1
+    cal vec3_load
+    fadd a0,a0,1.0
+    mov a3, start_1                       # destination
+    cal vec3_store
+
+    .right_button:
+
+    #draw ship
+    mov a0,start_1
+    cal vec3_load
+
+    mov t0,a0
+    mov t1,a1
+
+    mov a0, spaceship    # a0: PA-relative Adresse der Textur
+
+    fcti a1,t0
+    fcti a2,t1
+
+
+
+    mov a3, 0           # mirrow
+    syscall SYS_DRAW_TEXTURE
+
+    # mouse
     syscall SYS_GET_MOUSE_POSITION      # a0 = x (int), a1 = y (int)
+
     fctf a0, a0                         # int -> float
     fctf a1, a1                         # int -> float
     mov a2, 0.0                         # z = 0.0 (float)
     mov a3, end_1                       # destination
     cal vec3_store
+
+
+
 
     exit
 
@@ -812,7 +869,7 @@ _draw: # Runs at 60 Hz and updates the front buffer.
 
     mov a0, start_1
     mov a1, end_1
-    mov a2, 155                         # Luma 255
+    mov a2, 100                         # Luma 255
     cal draw_line
     exit
 
