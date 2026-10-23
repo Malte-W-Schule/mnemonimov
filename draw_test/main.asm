@@ -18,6 +18,8 @@ sbmk "Readme"
 
 vec3_0: res u8t vector.vector_size
 
+
+
 vec3_max_screen: res u8t vector.vector_size
 
 vec3_tmp_0: res u8t vector.vector_size
@@ -133,12 +135,50 @@ draw_line:
     pop s0
     ret
 
+bmk "Print Boxes"
+sbmk "print box test"
+print_box_test:
+
+    # 0 0 0 0 0
+    # 0 0 0 0 0
+    # 0 0 0 0 0
+    # 0 0 0 0 0
+    # 0 0 0 0 0
+
+
+    # a0    : x
+    # a1    : y
+    # a2    : luma (1..255)
+    mov a0,200
+    mov a1,200
+    mov a3,200
+    cal draw_float_pixel_save
+
+
+    ret
+
+
 bmk "start"
 start_1:    res u8t vector.vector_size
 end_1:      res u8t vector.vector_size
 
 _start: # Runs once when the VM starts.
     # Initialize your game state here.
+
+    # Print Screen Size
+    # Width (x)
+    mov a0,SCREEN_WIDTH
+    syscall SYS_PRINT_LINE_INT
+    # Height (y)
+    mov a0,SCREEN_HEIGHT
+    syscall SYS_PRINT_LINE_INT
+
+
+sbmk "Reserve Backpuffer"
+    # reserve backpuffer (for now)
+    #syscall SYS_PRESERVE_BACK_BUFFER
+    cal print_box_test
+
 
     mov a0,20.0
     mov a1,200.0
@@ -147,6 +187,9 @@ _start: # Runs once when the VM starts.
     cal vec3_store
 
     exit
+
+
+
 
 bmk "update"
 _update: # Runs at 60 Hz.
