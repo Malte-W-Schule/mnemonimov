@@ -12,17 +12,21 @@
 #
 # =====================================
 
+
+bmk "Prints" # ==================================
+
+
 txt_test: emb string "test"
-txt_test_method: emb string "TEST_METHOD"
+sbmk "print_test"
+print_test:
+    mov a0,txt_test
+    syscall SYS_PRINT_LINE_STRING
 
+    ret
 
-bmk "Prints"
-
-sbmk "print method name"
-
+sbmk "print method name (str)"
 # Param
 ## a0   :   method name (string)
-
 print_method_name:
     # === Print Method Name ===
     mov t0,a0
@@ -32,17 +36,75 @@ print_method_name:
     syscall SYS_PRINT_STRING
     ret
 
+sbmk "print method number (int)"
+# Param
+## a0   :   method number (int)
+print_method_number:
+    # === Print Method Name ===
+    mov t0,a0
+    mov a0,txt_test_number
+    syscall SYS_PRINT_STRING
+    mov a0,t0
+    syscall SYS_PRINT_LINE_INT
+    ret
 
-bmk "Assert"
 
-sbmk "Text"
-txt_method_name: emb string "Method: "
+sbmk "print error predicted int"
+# Params:
+#   a0 : is (actual)
+#   a1 : should (expected)
 
-txt_error: emb string " - Error: [ "
-txt_predicted: emb string " ] should be: [ "
-txt_predicted_end: emb string " ]"
+print_error_predicted:
 
-txt_correct: emb string " - Correct "
+    # === Save ===
+    psh s0
+    psh s1
+
+    mov s0, a0
+    mov s1, a1
+
+    # === Error ===
+    mov a0, txt_error
+    syscall SYS_PRINT_STRING
+    mov a0, s0
+    syscall SYS_PRINT_INT
+
+    # === Predicted ===
+    mov a0, txt_predicted
+    syscall SYS_PRINT_STRING
+    mov a0, s1
+    syscall SYS_PRINT_INT
+
+    mov a0, txt_predicted_end
+    syscall SYS_PRINT_LINE_STRING
+
+    pop s1
+    pop s0
+    ret
+
+bmk "Example Tests" # ===========================
+
+sbmk "testsuite run"
+
+testsuite_run:
+
+    # Setup:
+
+    # Tests:
+    cal test_1_add_two_int_values
+
+
+    ret
+
+sbmk "test 1 add two int values"
+test_1_add_two_int_values:
+    mov a0,1
+    cal print_method_number
+
+    mov a0,2
+    cal print_method_number
+
+    ret
 
 sbmk "test funktion add"
 # Param
@@ -58,11 +120,27 @@ test_funktion_add:
     ret
 
 
+bmk "Tests" # ====================================
+
+
+txt_test_method: emb string "TEST_METHOD"
+txt_method_name: emb string "Method: "
+
+txt_test_number: emb string "Test: "
+
+txt_error: emb string " - Error: [ "
+txt_predicted: emb string " ] should be: [ "
+txt_predicted_end: emb string " ]"
+txt_correct: emb string " - Correct "
+
+
+
+
 sbmk "funktion assert eq int result"
 # Param
 ## a0       : funktion
 ## a1       : funktion name (str)
-## a2       : expected output (int)
+## a2       : expected output
 ## a3-a15   : input (a0-a12)
 
 # Return
@@ -71,7 +149,7 @@ sbmk "funktion assert eq int result"
 # use:
 # mov a0,assert_eq_int
 # cal call_funktion
-funktion_assert_eq_int_result:
+funktion_assert_eq:
 
     # === Store Values ===
     psh s0                              # | (s0)
@@ -97,24 +175,29 @@ funktion_assert_eq_int_result:
     cmp eq,a0,s2                        # cmp a0,s2
     jtr .funktion_assert_eq_int_result_correct
 
-    psh a0
     # else
-    # === Error ===
+    # === Print Error Message ===
+
+    psh a0                              # Store result | s0-s1-s2-(a0)
+    # Error
     mov a0,txt_error
     syscall SYS_PRINT_STRING
 
-    pop a0
+    # Value
+    pop a0                              # Load Value | s0-s1-s2-[a0]
     mov a0,a0
     syscall SYS_PRINT_INT
 
-    # === predicted ===
+    # === Print Predicted ===
+    # Predicted
     mov a0,txt_predicted
     syscall SYS_PRINT_STRING
     mov a0,s2
+    # Value
     syscall SYS_PRINT_INT
     mov a0,txt_predicted_end
     syscall SYS_PRINT_LINE_STRING
-    jmp .funktion_assert_eq_int_result_done
+    jmp .funktion_assert_eq_int_result_done # Jump to end
 
     # === Correct ===
 .funktion_assert_eq_int_result_correct:
@@ -135,26 +218,20 @@ sbmk "assert eq int"
 # Params
 ## a0:  value (is)
 ## a1:  value (should)
-## a2:  method_name?
 
 #Funktion
 ## Returns [ Correct / Error (is) (should) ]
 
-assert_eq_int:
+assert_eq:
 
     # === Save Values ===
-    psh a0                              # | (a0)
-    psh a1                              # | a0-(a1)
+    psh s0                              # | (s0)
+    psh s1                              # | s0-(s1)
 
-    # === Print Method Name ===
-    mov a0,txt_method_name
-    syscall SYS_PRINT_STRING
-    mov a0,a2
-    syscall SYS_PRINT_STRING
+    mov s0,a0
+    mov s1,a1
 
-    # === Load Values & Compare ===
-    pop a2                              # | a0-[a1]
-    pop a1                              # | [a0]
+    # === Compare ===
     cmp eq,a1,a2
     jtr .assert_eq_int_correct
 
@@ -180,37 +257,17 @@ assert_eq_int:
 
     # === Done ===
 .assert_eq_int_done:
+    pop s1                              # | s0-[s1]
+    pop s0                              # | [s0]
     ret
 
-sbmk "print_test"
-print_test:
-    mov a0,txt_test
-    syscall SYS_PRINT_LINE_STRING
 
-    ret
 
 
 _start: # Runs once when the VM starts.
     # Initialize your game state here.
 
-
-    # Params
-    ## a0:  value (is)
-    ## a1:  value (should)
-    ## a2:  method_name?
-
-    #mov a0,0
-    #mov a1,0
-    #mov a2,txt_test_method
-    #cal assert_eq_int
-
-    mov a0,test_funktion_add
-    mov a1,txt_test_method
-    mov a2,4
-    mov a3,2
-    mov a4,2
-    cal funktion_assert_eq_int_result
-
+    cal testsuite_run
 
     exit
 
