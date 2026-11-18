@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "vec-libary.md",
+                "file": "test-libary.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "vec-libary"
+              "title": "test-libary"
             }
           },
           {
@@ -41,16 +41,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "test-libary.md",
+                "file": "vec-libary.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "vec-libary"
+            }
+          },
+          {
+            "id": "ead83642a0592882",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "help.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "test-libary"
+              "title": "help"
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -129,7 +143,7 @@
               "type": "backlink",
               "state": {
                 "file": "test-libary.md",
-                "collapseAll": false,
+                "collapseAll": true,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
                 "showSearch": false,
@@ -199,12 +213,12 @@
               "title": "Outline"
             }
           }
-        ]
+        ],
+        "currentTab": 4
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -217,10 +231,11 @@
       "bases:Create new base": false
     }
   },
-  "active": "eb335b7484a9f70c",
+  "active": "bc6d10fca721fe28",
   "lastOpenFiles": [
-    "test-libary.md",
     "vec-libary.md",
+    "test-libary.md",
+    "help.md",
     "Mnemnomnimov doku.md"
   ]
 }

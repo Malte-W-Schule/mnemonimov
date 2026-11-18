@@ -1,7 +1,6 @@
 ___
 
 
-
 # Print method name
 
 ## Function

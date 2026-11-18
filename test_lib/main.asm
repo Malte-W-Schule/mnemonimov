@@ -213,52 +213,48 @@ funktion_assert_eq:
     pop s0                              # | [s1]
     ret
 
-
 sbmk "assert eq"
 # Params
-## a0:  value (is)
-## a1:  value (should)
-
-#Funktion
-## Returns [ Correct / Error (is) (should) ]
+## a0:  value (is - float)
+## a1:  value (should - float)
 
 assert_eq:
-
     # === Save Values ===
     psh s0                              # | (s0)
     psh s1                              # | s0-(s1)
 
-    mov s0,a0
-    mov s1,a1
+    mov s0, a0                          # s0 = is
+    mov s1, a1                          # s1 = should
 
-    # === Compare ===
-    cmp eq,a1,a2
-    jtr .assert_eq_int_correct
+    # === Compare (Float!) ===
+    cmp feqa, s0, s1                    # Float-Vergleich mit Epsilon-Toleranz
+    jtr .assert_eq_correct
 
     # === Error ===
-    mov a0,txt_error
+    mov a0, txt_error
     syscall SYS_PRINT_STRING
-    mov a0,a1
-    syscall SYS_PRINT_INT
+    mov a0, s0                          # s0 ('is') ausgeben
+    mov a1, 5
+    syscall SYS_PRINT_FLOAT
 
     # === pred ===
-    mov a0,txt_predicted
+    mov a0, txt_predicted
     syscall SYS_PRINT_STRING
-    mov a0,a2
-    syscall SYS_PRINT_INT
-    mov a0,txt_predicted_end
+    mov a0, s1                          # s1 ('should') ausgeben
+    mov a1, 5
+    syscall SYS_PRINT_FLOAT
+    mov a0, txt_predicted_end
     syscall SYS_PRINT_LINE_STRING
-    jmp .assert_eq_int_done
+    jmp .assert_eq_done
 
     # === Correct ===
-.assert_eq_int_correct:
-    mov a0,txt_correct
+.assert_eq_correct:
+    mov a0, txt_correct
     syscall SYS_PRINT_LINE_STRING
 
     # === Done ===
-.assert_eq_int_done:
+.assert_eq_done:
     pop s1                              # | s0-[s1]
     pop s0                              # | [s0]
     ret
-
 
