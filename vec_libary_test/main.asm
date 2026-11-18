@@ -4,91 +4,110 @@ bmk "Includes"
 
 include "../vec_libary/main.asm"
 
+include "../test_lib/main.asm"
+
 
 
 tmpVec: res u8t vector.vector_size
-
-txt_error: emb string "Error: "
-txt_error_pred: emb string " Predicted: "
-
-txt_cmp: emb string "Complete "
-
-txt_done: emb string "Done"
-
-
 
 bmk "Test_help"
 
 bmk "Tests"
 
 
-sbmk "write read"
-# Params
-write_read:
 
-    mov a3,tmpVec
-    mov a0,1
-    mov a1,2
-    mov a2,3
+bmk "Test Vec3 lib"
 
-    mov s0,1
-    mov s1,2
-    mov s2,3
+sbmk "vec3 moc"
+vec3_A: res u8t vector.vector_size
+vec3_B: res u8t vector.vector_size
+vec3_C: res u8t vector.vector_size
+
+
+test_vec3_reset_vec3_A:
+
+    mov a0,1                            # X: 1
+    mov a1,2                            # Y: 2
+    mov a2,3                            # Z: 3
+    mov a3,vec3_A
 
     cal vec3_store
+    ret
+
+test_vec3_reset_vec3_B:
+
+    mov a0,3                            # X: 3
+    mov a1,2                            # Y: 2
+    mov a2,1                            # Z: 1
+    mov a3,vec3_B
+
+    cal vec3_store
+    ret
+
+test_vec3_reset_vec3_C:
 
     mov a0,0
     mov a1,0
     mov a2,0
+    mov a3,vec3_C
 
-    mov a0,tmpVec
-    cal vec3_load
-
-    # === Compare eingaben zu gestorten ausgaben ===
-    cmp eq,a0,s0
-    jfs .write_read_error
-
-    cmp eq,a1,s1
-    jfs .write_read_error
-
-    cmp eq,a2,s2
-    jfs .write_read_error
-
-    jmp .write_read_complete
-
-
-.write_read_error:
-
-    psh a0
-    mov a0,txt_error
-    syscall SYS_PRINT_STRING
-
-    pop a0
-    syscall SYS_PRINT_INT
-
-    mov a0,txt_error_pred
-    syscall SYS_PRINT_STRING
-
-    mov a0,s0
-    syscall SYS_PRINT_LINE_INT
-    jmp .write_read_done
-
-
-.write_read_complete:
-
-    mov a0,txt_cmp
-    syscall SYS_PRINT_LINE_STRING
-    jmp .write_read_done
-
-
-.write_read_done:
-    mov a0,txt_done
-    syscall SYS_PRINT_LINE_STRING
-
-
+    cal vec3_store
     ret
 
 
+test_vec3_moc:
+
+    cal test_vec3_reset_vec3_A
+    cal test_vec3_reset_vec3_B
+    cal test_vec3_reset_vec3_C
+
+    ret
+
+sbmk "Vec3 Add"
+
+txt_test_vec3_add: emb string "test_vec3_add"
+
+test_vec3_add:
+
+    cal test_vec3_moc
+
+    ## Functionality:
+
+    ## Params:
+    mov a0,vec3_A                       # a0    : source vec3 A address
+    mov a1,vec3_B                       # a1    : source vec3 B address
+    mov a2,vec3_C                       # a2    : destination vec3 address
+
+    cal vec3_add
+
+    # === Test X ===
+    ## Params:
+    mov a0,vec3_C                       # a0    : source vec3 address
+
+    cal vec3_load_x                     # a0    : x
+    # set via vec_load_x ## a0:  value (is)
+    mov a3,4 ## a1:  value (should)
+    cal assert_eq
+
+    # === Test Y ===
+    ## Params:
+    mov a0,vec3_C                       # a0    : source vec3 address
+
+    cal vec3_load_y                     # a0    : x
+    # set via vec_load_x ## a0:  value (is)
+    mov a3,4 ## a1:  value (should)
+    cal assert_eq
+
+    # === Test Z ===
+    ## Params:
+    mov a0,vec3_C                       # a0    : source vec3 address
+
+    cal vec3_load_z                     # a0    : x
+    # set via vec_load_x ## a0:  value (is)
+    mov a3,4 ## a1:  value (should)
+    cal assert_eq
+
+    ret
 
 # Built-in process entry points.
 # The kernel runs these processes automatically.
@@ -99,24 +118,28 @@ bmk "Start"
 _start: # Runs once when the VM starts.
     # Initialize your game state here.
 
-    cal write_read
+    mov a0,txt_test_vec3_add
+    ## a0   :   method name (string)
+    cal print_method_name
+    cal test_vec3_add
 
     exit
 
 
-bmk "Update"
-_update: # Runs at 60 Hz.
+
+#bmk "Update"
+#_update: # Runs at 60 Hz.
     # Write your game logic here.
-    exit
+#    exit
 
 
-bmk "Draw"
-_draw: # Runs at 60 Hz and updates the front buffer.
+#bmk "Draw"
+#_draw: # Runs at 60 Hz and updates the front buffer.
     # Draw graphics to the screen here.
-    exit
+#    exit
 
 
-bmk "Input"
-_input: # Runs when input state changes.
+#bmk "Input"
+#_input: # Runs when input state changes.
     # React to player input here.
-    exit
+#    exit

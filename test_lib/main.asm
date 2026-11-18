@@ -33,7 +33,7 @@ print_method_name:
     mov a0,txt_method_name
     syscall SYS_PRINT_STRING
     mov a0,t0
-    syscall SYS_PRINT_STRING
+    syscall SYS_PRINT_LINE_STRING
     ret
 
 sbmk "print method number (int)"
@@ -136,7 +136,7 @@ txt_correct: emb string " - Correct "
 
 
 
-sbmk "funktion assert eq int result"
+sbmk "funktion assert eq"
 # Param
 ## a0       : funktion
 ## a1       : funktion name (str)
@@ -214,7 +214,7 @@ funktion_assert_eq:
     ret
 
 
-sbmk "assert eq int"
+sbmk "assert eq"
 # Params
 ## a0:  value (is)
 ## a1:  value (should)
@@ -262,28 +262,3 @@ assert_eq:
     ret
 
 
-
-
-_start: # Runs once when the VM starts.
-    # Initialize your game state here.
-
-    cal testsuite_run
-
-    exit
-
-
-
-
-_update: # Runs at 60 Hz.
-    # Write your game logic here.
-    exit
-
-
-_draw: # Runs at 60 Hz and updates the front buffer.
-    # Draw graphics to the screen here.
-    exit
-
-
-_input: # Runs when input state changes.
-    # React to player input here.
-    exit
