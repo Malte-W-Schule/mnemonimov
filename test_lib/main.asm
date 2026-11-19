@@ -1,16 +1,20 @@
-# Built-in process entry points.
-# The kernel runs these processes automatically.
-# Each process must end with an 'exit' instruction.
 
-
-
-# ======================================
+bmk "README"
+# ==============================================================================
+# Test - Libary
+# ==============================================================================
+# Version: 1.0
 #
+# OVERVIEW:
+# a test libary with
+# - assert_eq
+# - assert_eq_function
 #
+# both compare float values
 #
+# aswell as a simple demonstration how to use it with an add function
 #
-#
-# =====================================
+# ==============================================================================
 
 
 bmk "Prints" # ==================================
@@ -89,10 +93,8 @@ sbmk "testsuite run"
 testsuite_run:
 
     # Setup:
-
     # Tests:
     cal test_1_add_two_int_values
-
 
     ret
 
