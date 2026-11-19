@@ -188,17 +188,14 @@ sbmk "vec3 load 2"
 # a0..a2: Vec A (x, y, z)
 # a3..a5: Vec B (x, y, z)
 vec3_load_2:
-    psh a0                              # | a0(srcA)
 
     # --- Load Vec B ---
-    mov a0, a1                          # a0 = srcB
-    cea a0, 0, 1
+    cea a1, 0, 1
     lde f32t, a3, vector.x              # a3 <- B.x
     lde f32t, a4, vector.y              # a4 <- B.y
     lde f32t, a5, vector.z              # a5 <- B.z
 
     # --- Load Vec A ---
-    pop a0                              # | [a0(srcA)]
     cea a0, 0, 1
     cal vec3_load                       # a0..a2 <- A(x, y, z)
     ret
@@ -329,6 +326,30 @@ vec3_add:
     # bec B a3:x a4:y a5:z
 
     vfadd a0..a2,a0..,a3..
+
+    pop a3                              # |     [a2(dst)]
+    cal vec3_store
+
+    ret
+
+
+sbmk "vec3 sub"
+## Functionality: A - B = C
+
+## Params:
+# a0    : source vec3 A address
+# a1    : source vec3 B address
+# a2    : destination vec3 address
+
+## Output:
+vec3_sub:
+
+    psh a2                              # |a2(dst)
+    cal vec3_load_2                     # values in a0-a5
+    # vec A a0:x a1:y a2:z
+    # bec B a3:x a4:y a5:z
+
+    vfsub a0..a2,a0..,a3..
 
     pop a3                              # |     [a2(dst)]
     cal vec3_store

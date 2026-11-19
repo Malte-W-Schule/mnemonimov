@@ -3,10 +3,7 @@
 bmk "Includes"
 
 include "../vec_libary/main.asm"
-
 include "../test_lib/main.asm"
-
-
 
 tmpVec: res u8t vector.vector_size
 
@@ -186,7 +183,7 @@ test_vec3_moc:
 
     ret
 
-sbmk "test vec3 Add"
+sbmk "test vec3 add"
 
 txt_test_vec3_add: emb string "test_vec3_add"
 
@@ -204,38 +201,45 @@ test_vec3_add:
 
     cal vec3_add
 
-    # === Test X ===
-    mov a0,txt_test_vec3_x
-    syscall SYS_PRINT_STRING
+    mov a0,4.0
+    mov a1,4.0
+    mov a2,4.0
+    mov a3,vec3_A
+    cal vec3_store
+
+    mov a0,vec3_A
+    mov a1,vec3_C
+    cal assert_eq_vec3
+
+    ret
+
+sbmk "test vec3 add"
+
+txt_test_vec3_sub: emb string "test_vec3_sub"
+
+test_vec3_sub:
+
+    mov a0,txt_test_vec3_sub
+    cal print_method_name
+
+    cal test_vec3_moc
+
     ## Params:
-    mov a0,vec3_C                       # a0    : source vec3 address
+    mov a0,vec3_A                       # a0    : source vec3 A address
+    mov a1,vec3_B                       # a1    : source vec3 B address
+    mov a2,vec3_C                       # a2    : destination vec3 address
 
-    cal vec3_load_x                     # a0    : x
-    # set via vec_load_x ## a0:  value (is)
-    mov a1,4.0 ## a1:  value (should)
-    cal assert_eq
+    cal vec3_sub
 
-    # === Test Y ===
-    mov a0,txt_test_vec3_y
-    syscall SYS_PRINT_STRING
-    ## Params:
-    mov a0,vec3_C                       # a0    : source vec3 address
+    mov a0,-2.0
+    mov a1,0.0
+    mov a2,2.0
+    mov a3,vec3_A
+    cal vec3_store
 
-    cal vec3_load_y                     # a0    : x
-    # set via vec_load_x ## a0:  value (is)
-    mov a1,4.0 ## a1:  value (should)
-    cal assert_eq
-
-    # === Test Z ===
-    mov a0,txt_test_vec3_z
-    syscall SYS_PRINT_STRING
-    ## Params:
-    mov a0,vec3_C                       # a0    : source vec3 address
-
-    cal vec3_load_z                     # a0    : x
-    # set via vec_load_x ## a0:  value (is)
-    mov a1,4.0 ## a1:  value (should)
-    cal assert_eq
+    mov a0,vec3_A
+    mov a1,vec3_C
+    cal assert_eq_vec3
 
     ret
 
@@ -277,11 +281,11 @@ test_vec3_dot_product:
     cal test_vec3_moc
     ## Params:
     mov a0,vec3_A                       # a0    : source vec3 A address
-    mov a0,vec3_B                       # a1    : source vec3 B address
+    mov a1,vec3_B                       # a1    : source vec3 B address
 
     cal vec3_dot_product                # a0    : dot product scalar (float)
     # 3 2 1; 1 2 3;
-    # (3*1)+(2*2)+(1*3) = 3 + 4 + 3 = 10
+    # (3*1)+(2*2)+(1*3) = 3.0 + 4.0 + 3.0 = 10.0
 
     mov a1,10.0                         ## a1:  value (should)
 
@@ -322,7 +326,7 @@ test_vec3_cross_product:
     # 2 - 6
 
     # -4
-    # 8
+    # +8
     # -4
 
     mov a0,vec3_A
@@ -331,11 +335,46 @@ test_vec3_cross_product:
 
     cal vec3_cross_product
 
+    mov a0,-4.0
+    mov a1,8.0
+    mov a2,-4.0
+    mov a3,vec3_B
 
+    cal vec3_store
 
+    mov a0,vec3_B
+    mov a1,vec3_C
+    cal assert_eq_vec3
 
     ret
 
+
+sbmk "test vec3 normalize"
+
+txt_test_vec3_normalize: emb string "test_vec3_normalize"
+test_vec3_normalize:
+    mov a0,txt_test_vec3_dot_product
+    cal print_method_name
+
+    cal test_vec3_moc
+
+    ## Params:
+    mov a0,vec3_A                       # a0    : source vec3 address
+    mov a1,vec3_B                       # a1    : destination vec3 address
+
+    cal vec3_normalize
+
+    mov a0,0.26726
+    mov a1,0.53452
+    mov a2,0.80178
+    mov a3,vec3_C
+    cal vec3_store
+
+    mov a0,vec3_B
+    mov a1,vec3_C
+    cal assert_eq_vec3
+
+    ret
 
 bmk "Start"
 
@@ -343,15 +382,11 @@ _start: # Runs once when the VM starts.
     # Initialize your game state here.
 
     cal test_vec3_add
+    cal test_vec3_sub
     cal test_vec3_copy
     cal test_vec3_dot_product
-
-    psh a0
-
-    mov a0,-4.0
-    mov a1,8.0
-
-    pop a0
+    cal test_vec3_cross_product
+    cal test_vec3_normalize
 
     exit
 

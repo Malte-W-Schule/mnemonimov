@@ -6,7 +6,7 @@ ___
 ## Function
 Prints a method name (string) on the Console
 ## Use 
-```
+```python
 # Param
 ## a0   :   method name (string)
 cal print_method_name
