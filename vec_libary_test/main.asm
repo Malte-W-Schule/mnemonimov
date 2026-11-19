@@ -35,7 +35,6 @@ assert_eq_vec3_single_value:
     mov s2,a2                           # s2 <- function to call
 
     # === get value ===
-
     # xyz value from A
     mov a0,s0
     cala s2                             # call load_x_y_or_z function
@@ -267,6 +266,76 @@ test_vec3_copy:
     ret
 
 
+sbmk "test vec3 dot produkt"
+
+txt_test_vec3_dot_product: emb string "test_vec3_dot_product"
+
+test_vec3_dot_product:
+    mov a0,txt_test_vec3_dot_product
+    cal print_method_name
+
+    cal test_vec3_moc
+    ## Params:
+    mov a0,vec3_A                       # a0    : source vec3 A address
+    mov a0,vec3_B                       # a1    : source vec3 B address
+
+    cal vec3_dot_product                # a0    : dot product scalar (float)
+    # 3 2 1; 1 2 3;
+    # (3*1)+(2*2)+(1*3) = 3 + 4 + 3 = 10
+
+    mov a1,10.0                         ## a1:  value (should)
+
+    cal assert_eq
+    ret
+
+sbmk "test vec3 cross product"
+
+txt_test_vec3_cross_product: emb string "test_vec3_cross_product"
+test_vec3_cross_product:
+
+
+    mov a0,txt_test_vec3_dot_product
+    cal print_method_name
+
+    cal test_vec3_moc
+    ## Params:
+    # a0    : source vec3 A address
+    # a1    : source vec3 B address
+    # a2    : destination vec3 address
+
+    # vec3A 1 2 3
+    # vec3B 3 2 1
+
+    # 1     3
+    # 2     2
+    # 3     1
+    # 1     3
+    # 2     2
+    # 3     1
+
+    # (2*1) - (3*2)
+    # (3*3) - (1*1)
+    # (2*1) - (3*2)
+
+    # 2 - 6
+    # 9 - 1
+    # 2 - 6
+
+    # -4
+    # 8
+    # -4
+
+    mov a0,vec3_A
+    mov a1,vec3_B
+    mov a2,vec3_C
+
+    cal vec3_cross_product
+
+
+
+
+    ret
+
 
 bmk "Start"
 
@@ -275,8 +344,14 @@ _start: # Runs once when the VM starts.
 
     cal test_vec3_add
     cal test_vec3_copy
+    cal test_vec3_dot_product
 
+    psh a0
 
+    mov a0,-4.0
+    mov a1,8.0
+
+    pop a0
 
     exit
 

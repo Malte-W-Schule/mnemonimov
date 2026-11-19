@@ -1,4 +1,41 @@
 
+
+
+# vec3 cross product
+
+## Functionality: 
+Calculates Cross Product C = A x B
+C.x = (A.y * B.z) - (B.y * A.z)
+C.y = (A.z * B.x) - (B.z * A.x)
+C.z = (A.x * B.y) - (B.x * A.y)
+
+```
+## Params:
+# a0    : source vec3 A address
+# a1    : source vec3 B address
+# a2    : destination vec3 address
+
+## Output:
+# none
+cal vec3_cross_product
+```
+
+
+# vec3 dot product
+
+## Functionality
+Calculates dot product of two vectors: (A.x*B.x + A.y*B.y + A.z*B.z)
+
+```
+## Params:
+# a0    : source vec3 A address
+# a1    : source vec3 B address
+
+## Output:
+# a0    : dot product scalar (float)
+cal vec3_dot_product
+```
+
 # assert_eq_vec3_single_value
 
 # Function
