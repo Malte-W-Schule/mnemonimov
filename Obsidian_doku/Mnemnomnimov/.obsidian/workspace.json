@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "vec-libary.md",
-                "mode": "source",
+                "file": "help.md",
+                "mode": "preview",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "vec-libary"
+              "title": "help"
             }
           },
           {
@@ -204,7 +204,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "vec-libary.md",
+                "file": "help.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -234,8 +234,8 @@
   "active": "bc6d10fca721fe28",
   "lastOpenFiles": [
     "Test-libary.md",
+    "Mnemnomnimov doku.md",
     "vec-libary.md",
-    "help.md",
-    "Mnemnomnimov doku.md"
+    "help.md"
   ]
 }

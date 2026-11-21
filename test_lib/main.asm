@@ -258,3 +258,45 @@ assert_eq:
     pop s0                              # | [s0]
     ret
 
+sbmk "assert eq int"
+# Params
+## a0:  value (is - int)
+## a1:  value (should - int)
+
+assert_eq_int:
+    # === Save Values ===
+    psh s0                              # | (s0)
+    psh s1                              # | s0-(s1)
+
+    mov s0, a0                          # s0 = is
+    mov s1, a1                          # s1 = should
+
+    # === Compare (Integer!) ===
+    cmp eq, s0, s1
+    jtr .assert_eq_int_correct
+
+    # === Error ===
+    mov a0, txt_error
+    syscall SYS_PRINT_STRING
+    mov a0, s0                          # s0 ('is') ausgeben
+    syscall SYS_PRINT_INT
+
+    # === pred ===
+    mov a0, txt_predicted
+    syscall SYS_PRINT_STRING
+    mov a0, s1                          # s1 ('should') ausgeben
+    syscall SYS_PRINT_INT
+    mov a0, txt_predicted_end
+    syscall SYS_PRINT_LINE_STRING
+    jmp .assert_eq_int_done
+
+    # === Correct ===
+.assert_eq_int_correct:
+    mov a0, txt_correct
+    syscall SYS_PRINT_LINE_STRING
+
+    # === Done ===
+.assert_eq_int_done:
+    pop s1                              # | s0-[s1]
+    pop s0                              # | [s0]
+    ret

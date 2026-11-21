@@ -6,10 +6,14 @@ ___
 ## Function
 Prints a method name (string) on the Console
 ## Use 
+```
+txt_test_vec3_x: emb string "Function Name"
+```
+
 ```python
-# Param
-## a0   :   method name (string)
-cal print_method_name
+	# Param
+	## a0   :   method name (string)
+	cal print_method_name
 ```
 
 # Assert EQ
