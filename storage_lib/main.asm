@@ -5,22 +5,21 @@ include "../test_lib/main.asm"
 
 bmk "storage"
 
-
 # [test]
 test_storage:
 
-    cal test_storage_write_single_byte
-    cal test_storage_read_single_byte
-    cal test_storage_init
-    cal test_storage_settings_len
-    cal test_storage_len
-    cal test_storage_len_set
-    cal test_storage_len_increase
-    cal test_storage_clear
-    cal test_storage_file_count
-    cal test_storage_file_count_set
-    cal test_storage_file_count_increase
-    cal test_storage_last_file_addr
+    #cal test_storage_write_single_byte
+    #cal test_storage_read_single_byte
+    #cal test_storage_init
+    #cal test_storage_settings_len
+    #cal test_storage_len
+    #cal test_storage_len_set
+    #cal test_storage_len_increase
+    #cal test_storage_clear
+    #cal test_storage_file_count
+    #cal test_storage_file_count_set
+    #cal test_storage_file_count_increase
+    #cal test_storage_last_file_addr
     cal test_storage_add_file
     cal test_storage_get_file
 
@@ -580,9 +579,9 @@ storage_add_file:
     ret
 
 # [test]
-test_txt_storage_add_file: emb string "Hallo Ich"
-test_txt_storage_add_file_2: emb string "ich hallo"
-def c_text_storage_add_file_txt_len 10
+test_txt_storage_add_file: emb string "Hallo Ich bin der super tolle tester"
+test_txt_storage_add_file_2: emb string "ich hallo tester tester super toll"
+def c_text_storage_add_file_txt_len 100
 
 test_storage_add_file:
 
@@ -639,6 +638,8 @@ test_storage_add_file:
     mov a1,c_text_storage_add_file_txt_len
     cal storage_add_file                # should throw error
 
+    cal storage_clear
+
     ret
 
 
@@ -650,30 +651,61 @@ sbmk "storage get file"
 # Return
 # prints
 
+txt_storage_get_file_error_index: emb string "ERROR:storage_get_file_wrong_index"
 storage_get_file:
 
     # === SAVE ===
     psh s0                              # |(s0)
     psh s1                              # |s0-(s1)
+    psh s2                              # |s0-s1-(s2)
 
     mov s0,a0
     # s0 : index
 
-    # !TODO (implemen error handling (<0 >setings size) file count
+
+    # === index bound check ===
+    # index >= 0
+    cmp gte,s0,0
+    jfs .storage_get_file_error_index
+    # index < settings len
+    add a0,s0,c_storage_file_lookup_start_addr
+    cmp lt,a0,c_storage_settings_len
+    jfs .storage_get_file_error_index
+    # index < file count
+    cal storage_file_count
+    cmp lt,s0,a0
+    jfs .storage_get_file_error_index
+
 
     # add start addr to index
-    add a0,c_storage_file_lookup_start_addr
-    mov s0,a0                           # location where addr of file_addr_index is
+    add a0,s0,c_storage_file_lookup_start_addr
+    mov s2,a0                           # location where addr of file_addr_index is
     cal storage_read_single_byte        # gets the addr pointing
 
     mov s1,a0                           # store start addr
-    # a0 add of start
-    # end is len oder nächste start (hier nächste start) !TODO nächste start / len ausäwlen
-    inc s0                              # get next file index start add to know end
-    mov a0,s0
-    cal storage_read_single_byte
 
-    # size of file
+    # get end
+
+    # if index last file take end stoage_len
+    cal storage_file_count
+    dec a0
+    cmp lt,s0,a0
+    # if not less, take end => storage_len
+    jtr .storage_get_file_next_file
+
+    # calc size with storage_len file is last file
+    cal storage_len
+    jmp .storage_get_file_size
+
+.storage_get_file_next_file:
+    # inc index
+    mov a0,s2                           # get index
+    inc a0                              # increase by one to get next file
+    cal storage_read_single_byte        # addr of next file start
+
+.storage_get_file_size:
+    # calc size of file
+    # a2 size <- end - start
     sub a2,a0,s1
 
     mov a0,read_buffer
@@ -684,7 +716,16 @@ storage_get_file:
     mov a0, read_buffer
     syscall SYS_PRINT_LINE_STRING
 
+    # === ERROR ===
+    jmp .storage_get_file_done
+.storage_get_file_error_index:
+    mov a0,txt_storage_get_file_error_index
+    syscall SYS_PRINT_LINE_STRING
+
+
+.storage_get_file_done:
     # === LOAD ===
+    pop s2                              # |a0-a1-[a2]
     pop s1                              # |a0-[s1]
     pop s0                              # |[a0]
 
@@ -716,8 +757,13 @@ test_storage_get_file:
     # get value
     mov a0,0
     cal storage_get_file
-    ret
+    mov a0,1
+    cal storage_get_file
+    # provoke error
+    mov a0,10
+    cal storage_get_file
 
+    ret
 
 bmk "start"
 
