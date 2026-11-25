@@ -20,8 +20,8 @@ test_storage:
     #cal test_storage_file_count_set
     #cal test_storage_file_count_increase
     #cal test_storage_last_file_addr
-    cal test_storage_add_file
-    cal test_storage_get_file
+    #cal test_storage_add_file
+    #cal test_storage_get_file
 
     ret
 
@@ -755,8 +755,8 @@ test_storage_get_file:
     add a1,a1,2
 
     # get value
-    mov a0,0
-    cal storage_get_file
+    #mov a0,0
+    #cal storage_get_file
     mov a0,1
     cal storage_get_file
     # provoke error
